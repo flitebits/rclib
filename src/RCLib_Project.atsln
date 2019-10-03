@@ -19,6 +19,11 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Basic", "Basic\Basic.cpppro
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "TwinkleLed", "TwinkleLed\TwinkleLed.cppproj", "{DCE6C7E3-EE26-4D79-826B-08594B9AD897}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FTSportster", "FTSportster\FTSportster.cppproj", "{01C45B4A-C425-4A74-BAA3-71F8422F898D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6E724952-B00C-49E1-AF74-9E213A15957A} = {6E724952-B00C-49E1-AF74-9E213A15957A}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -45,6 +50,10 @@ Global
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.Build.0 = Debug|AVR
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.ActiveCfg = Release|AVR
 		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.Build.0 = Release|AVR
+		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Debug|AVR.ActiveCfg = Debug|AVR
+		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Debug|AVR.Build.0 = Debug|AVR
+		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Release|AVR.ActiveCfg = Release|AVR
+		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

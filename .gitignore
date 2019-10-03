@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Editor backups
+*~
+#*#
+
+#Build dirs
+/[dD]ebug/
+/[rR]elease/
+/.vs/

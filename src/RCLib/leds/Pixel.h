@@ -10,6 +10,8 @@ namespace led {
 // amount = 0, pix set to black, amount = 0xFF no change
 void Fade(RGB* pix, u8_t amount);
 void Fade(RGBW* pix, u8_t amount);
+void Fade(RGB* pix, int num_pix, u8_t amount);
+void Fade(RGBW* pix, int num_pix, u8_t amount);
 // amount = 0, no change, amount = 0xff sets pix to white.
 void Lighten(RGB* pix, u8_t amount);
 void Lighten(RGBW* pix, u8_t amount);

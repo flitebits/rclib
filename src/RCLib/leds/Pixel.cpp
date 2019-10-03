@@ -28,6 +28,29 @@ void Fade(RGBW* pix, u8_t amount) {
   pix->blu = (amount * (int)pix->blu) >> 8;
   pix->wht = (amount * (int)pix->wht) >> 8;
 }
+void Fade(RGB* pix, int num_pix, u8_t amount) {
+  if (amount == 0xFF) return;
+  amount++;
+  while (num_pix > 0) {
+    pix->red = (amount * (int)pix->red) >> 8;
+    pix->grn = (amount * (int)pix->grn) >> 8;
+    pix->blu = (amount * (int)pix->blu) >> 8;
+    ++pix;
+    --num_pix;
+  }
+}
+void Fade(RGBW* pix, int num_pix, u8_t amount) {
+  if (amount == 0xFF) return;
+  amount++;
+  while (num_pix > 0) {
+    pix->red = (amount * (int)pix->red) >> 8;
+    pix->grn = (amount * (int)pix->grn) >> 8;
+    pix->blu = (amount * (int)pix->blu) >> 8;
+    pix->wht = (amount * (int)pix->wht) >> 8;
+    ++pix;
+    --num_pix;
+  }
+}
 
 void Lighten(RGB* pix, u8_t amount) {
   Blend(pix, clr::white, amount);
