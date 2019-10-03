@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Atmel Studio Solution File, Format Version 11.00
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "PolarisLed", "PolarisLed\PolarisLed.cppproj", "{9797CE9E-1328-4E94-BB59-377931036E96}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6E724952-B00C-49E1-AF74-9E213A15957A} = {6E724952-B00C-49E1-AF74-9E213A15957A}
+	EndProjectSection
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LedLamp", "LedLamp\LedLamp.cppproj", "{668E7FFD-957A-495D-91B6-A645746B7E3A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6E724952-B00C-49E1-AF74-9E213A15957A} = {6E724952-B00C-49E1-AF74-9E213A15957A}
+	EndProjectSection
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "RCLib", "RCLib\RCLib.cppproj", "{6E724952-B00C-49E1-AF74-9E213A15957A}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Basic", "Basic\Basic.cppproj", "{5A839572-7F76-4BCE-AE8A-562D43B2BA7B}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "TwinkleLed", "TwinkleLed\TwinkleLed.cppproj", "{DCE6C7E3-EE26-4D79-826B-08594B9AD897}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|AVR = Debug|AVR
+		Release|AVR = Release|AVR
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9797CE9E-1328-4E94-BB59-377931036E96}.Debug|AVR.ActiveCfg = Debug|AVR
+		{9797CE9E-1328-4E94-BB59-377931036E96}.Debug|AVR.Build.0 = Debug|AVR
+		{9797CE9E-1328-4E94-BB59-377931036E96}.Release|AVR.ActiveCfg = Release|AVR
+		{9797CE9E-1328-4E94-BB59-377931036E96}.Release|AVR.Build.0 = Release|AVR
+		{668E7FFD-957A-495D-91B6-A645746B7E3A}.Debug|AVR.ActiveCfg = Debug|AVR
+		{668E7FFD-957A-495D-91B6-A645746B7E3A}.Debug|AVR.Build.0 = Debug|AVR
+		{668E7FFD-957A-495D-91B6-A645746B7E3A}.Release|AVR.ActiveCfg = Release|AVR
+		{668E7FFD-957A-495D-91B6-A645746B7E3A}.Release|AVR.Build.0 = Release|AVR
+		{6E724952-B00C-49E1-AF74-9E213A15957A}.Debug|AVR.ActiveCfg = Debug|AVR
+		{6E724952-B00C-49E1-AF74-9E213A15957A}.Debug|AVR.Build.0 = Debug|AVR
+		{6E724952-B00C-49E1-AF74-9E213A15957A}.Release|AVR.ActiveCfg = Release|AVR
+		{6E724952-B00C-49E1-AF74-9E213A15957A}.Release|AVR.Build.0 = Release|AVR
+		{5A839572-7F76-4BCE-AE8A-562D43B2BA7B}.Debug|AVR.ActiveCfg = Debug|AVR
+		{5A839572-7F76-4BCE-AE8A-562D43B2BA7B}.Debug|AVR.Build.0 = Debug|AVR
+		{5A839572-7F76-4BCE-AE8A-562D43B2BA7B}.Release|AVR.ActiveCfg = Release|AVR
+		{5A839572-7F76-4BCE-AE8A-562D43B2BA7B}.Release|AVR.Build.0 = Release|AVR
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.ActiveCfg = Debug|AVR
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.Build.0 = Debug|AVR
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.ActiveCfg = Release|AVR
+		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.Build.0 = Release|AVR
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

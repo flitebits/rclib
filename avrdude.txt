@@ -1,0 +1,1 @@
+avrdude\avrdude -c jtag2updi -P COM3 -p m4808 -U flash:w:"atmega4809_basic/src/TwinkleLed/Debug/TwinkleLed.hex"
