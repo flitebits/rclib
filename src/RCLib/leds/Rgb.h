@@ -21,6 +21,8 @@ struct RGBW {
   RGBW(u8_t rgb, u8_t w) : grn(rgb), red(rgb), blu(rgb), wht(w) {}
   RGBW(u8_t r, u8_t g, u8_t b) : grn(g), red(r), blu(b), wht(0) {}
   RGBW(u8_t r, u8_t g, u8_t b, u8_t w) : grn(g), red(r), blu(b), wht(w) {}
+  RGBW(const RGB& rgb) : grn(rgb.grn), red(rgb.red), blu(rgb.blu), wht(0) {}
+  RGBW(const RGB& rgb, u8_t w) : grn(rgb.grn), red(rgb.red), blu(rgb.blu), wht(w) {}
   u8_t grn;
   u8_t red;
   u8_t blu;

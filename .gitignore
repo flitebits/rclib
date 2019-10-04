@@ -31,11 +31,12 @@
 *.out
 *.app
 
+#Build dirs
+Debug/
+Release/
+.vs/
+
 # Editor backups
 *~
 #*#
 
-#Build dirs
-/[dD]ebug/
-/[rR]elease/
-/.vs/

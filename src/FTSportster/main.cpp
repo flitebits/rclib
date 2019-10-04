@@ -18,6 +18,7 @@
 
 // LED helper functions.
 #include "leds/Rgb.h"
+#include "leds/Pixel.h"
 #include "leds/Clr.h"
 
 const u8_t VOLT_APIN = 8;
@@ -42,7 +43,7 @@ struct LedGroups {
   led::RGBW leftB[kWingNLed];
   led::RGB  leftT[6];
   led::RGBW leftF[kWingNLed];
-  FillWing(bool left, led::RGBW clr) {
+  void FillWing(bool left, led::RGBW clr) {
     if (left) {
       led::Fill(leftF, kWingNLed, clr);
       led::Fill(leftB, kWingNLed, clr);
@@ -51,7 +52,7 @@ struct LedGroups {
       led::Fill(rightB, kWingNLed, clr);
     }
   }
-  SetWingPix(bool left, u8_t idx, led::RGBW clr) {
+  void SetWingPix(bool left, u8_t idx, led::RGBW clr) {
     if (left) {
       leftF[kWingNLed - 1 - idx] = clr;
       leftB[idx] = clr;
@@ -105,29 +106,18 @@ void PulseMode(int thr) {
     work[pulse_idx + 3] = (val > 0xFF) ? 0xFF : val;
     val = work[pulse_idx + 4] + (0xFFF >> 8);
     work[pulse_idx + 4] = (val > 0xFF) ? 0xFF : val;
-    if (pulse_idx > BODY_CNT - 8) {
-      val = work[TAIL_IDX] + (0xFFF >> 6);
-      work[TAIL_IDX] = (val > 0xFF) ? 0xFF : val;
-    }    
-    if (pulse_idx > BODY_CNT - 1) {
-      work[TAIL_IDX] = 0xFF;
+    if (pulse_idx >= kWingNLed) {
       pulse_loc = 0;
       pulse_val = 0;
-      work[TAIL_IDX] = 0xFF;
     }
   }
   
-  for (int i=0; i<BODY_CNT; i++) {
+  for (int i=0; i < kWingNLed; i++) {
     led::RGB clr = led::Lookup5(heat, work[i]);
-    leds[i] = clr;
+    ledg.SetWingPix(true, i, led::RGBW(clr));
+    ledg.SetWingPix(false, i, led::RGBW(clr));
   }
-  
-  const u8_t base = TAIL_BASE_BRT;
-  work[TAIL_IDX] = base + (((work[TAIL_IDX] - base) * 0xD8) >> 8);
-  led::RGB clr = led::Lookup5(heat, work[TAIL_IDX]);
-
-  led::Fill(leds + TAIL_IDX, TAIL_CNT, clr);
-}
+ }
 
 u8_t logify(u8_t val) {
   u8_t lo = val & 0x1F;
