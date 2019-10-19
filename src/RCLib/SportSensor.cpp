@@ -13,15 +13,16 @@ enum {
   ESCAPE_BYTE =  0x7D
 };
 
-SportSensor::SportSensor(Serial* serial, bool invert, bool alt_pins)
+SportSensor::SportSensor(Serial* serial, bool invert, bool alt_pins, bool use_pullup)
   : serial_(serial),
     prev_read_(0),
     crc_(0),
     poll_cnt_(1),
     num_entries_(0) {
-  serial->Setup(57600, 8, Serial::PARITY_NONE, /*stop_bits=*/1, invert,
-		alt_pins, Serial::MODE_TX_RX_1WIRE);
-  serial->Disable(Serial::MODE_TX);
+  serial_->Setup(57600, 8, Serial::PARITY_NONE, /*stop_bits=*/1, invert,
+				 alt_pins, Serial::MODE_TX_RX_1WIRE, use_pullup = use_pullup);
+  serial_->Disable(Serial::MODE_TX);
+  serial_->Enable(Serial::MODE_RX);
 }
 
 i8_t SportSensor::AddSensor(u8_t sensor_id, u16_t data_id,
@@ -70,6 +71,49 @@ void SportSensor::Run() {
   while(serial_->Avail()) ReadAndProcess();
 }
 
+void SportSensor::ReadAndProcess() {
+  bool err = false;
+  u8_t data = serial_->Read(&err);
+  if (err) {
+    prev_read_ = 0;
+    return;
+  }
+  if (prev_read_ != FRAME_POLL_START) {
+     prev_read_ = data;
+     return;
+  }
+  
+  u8_t idx = num_entries_;
+  u32_t now = FastTimeMs();
+  u8_t now7 = now >> 7;  // down to 8ths of a second (125ms)
+  u8_t poll_max_delta = 0;
+
+  for (int i = 0; i < num_entries_; ++i) {
+    Entry& entry = entries_[i];
+    if (entry.sensor_id != data) continue;
+    u8_t poll_delta = poll_cnt_ - entry.most_recent_poll_cnt;
+    if (poll_delta > poll_max_delta) {
+      poll_max_delta = poll_delta;
+      idx = i;
+    }
+  } 
+  if (idx >= num_entries_) return;  // We don't have that sensor
+
+  Entry& entry = entries_[idx];
+  entry.most_recent_poll_cnt = poll_cnt_++;
+  u8_t elapsed_time = now7 - entry.most_recent_update_time;
+  if (elapsed_time < entry.poll_interval_100ms) {
+    SendNoUpdate(entry.data_id);
+  } else {
+    entry.most_recent_update_time = now7;
+    SendEntry(idx);
+  }
+
+  DBG_MD(SPORT, ("%sUpdate Idx: %d SensorId: %d DataId %d val: %ld\n",
+		 (elapsed_time < entry.poll_interval_100ms) ? "No " : "",
+		 idx, entry.sensor_id, entry.data_id, entry.value));
+}
+
 void SportSensor::SendEntry(u8_t idx) {
   Entry& entry = entries_[idx];
   crc_ = 0;
@@ -90,9 +134,9 @@ void SportSensor::SendEntry(u8_t idx) {
 
 void SportSensor::SendNoUpdate(u8_t idx) {
   Entry& entry = entries_[idx];
+  crc_ = 0;
   serial_->Disable(Serial::MODE_RX);
   serial_->Enable(Serial::MODE_TX);
-  crc_ = 0;
   SendByte(FRAME_SENSOR_NULL);
   SendByte((entry.data_id      ) & 0xFF);
   SendByte((entry.data_id >>  8) & 0xFF);
@@ -104,47 +148,6 @@ void SportSensor::SendNoUpdate(u8_t idx) {
   serial_->FlushTx();
   serial_->Disable(Serial::MODE_TX);
   serial_->Enable(Serial::MODE_RX);
-}
-
-void SportSensor::ReadAndProcess() {
-  bool err = false;
-  u8_t data = serial_->Read(&err);
-  if (err) {
-    prev_read_ = 0;
-    return;
-  }
-  if (prev_read_ != FRAME_POLL_START) {
-     prev_read_ = data;
-     return;
-  }
-  
-  u8_t idx = num_entries_;
-  u8_t now = FastTimeMs() >> 7;  // down to 8ths of a second (125ms)
-  u8_t poll_max_delta = 0;
-  for (int i = 0; i < num_entries_; ++i) {
-    Entry& entry = entries_[i];
-    if (entry.sensor_id != data) continue;
-    u8_t poll_delta = poll_cnt_ - entry.most_recent_poll_cnt;
-    if (poll_delta > poll_max_delta) {
-      poll_max_delta = poll_delta;
-      idx = i;
-    }
-  } 
-  if (idx >= num_entries_) return;  // We don't have that sensor
-
-  Entry& entry = entries_[idx];
-  entry.most_recent_poll_cnt = poll_cnt_++;
-  u8_t elapsed_time = now - entry.most_recent_update_time;
-  if (elapsed_time < entry.poll_interval_100ms) {
-    SendNoUpdate(entry.data_id);
-  } else {
-    entry.most_recent_update_time = now;
-    SendEntry(idx);
-  }
-
-  DBG_MD(SPORT, ("%sUpdate Idx: %d SensorId: %d DataId %d val: %ld\n",
-		 (elapsed_time < entry.poll_interval_100ms) ? "No " : "",
-		 idx, entry.sensor_id, entry.data_id, entry.value));
 }
 
 void SportSensor::SendByte(u8_t val) {

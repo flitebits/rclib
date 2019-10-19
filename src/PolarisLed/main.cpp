@@ -254,6 +254,10 @@ int main(void)
   Lights lights(&pwm);
 
   DBG_INIT(Serial::usart0, 115200);
+  DBG_LEVEL_HI(SBUS);
+  DBG_LEVEL_HI(SPORT);
+  DBG_LEVEL_HI(APP);
+  DBG_MD(APP, ("Hello World\n"));
 
   SportSensor sport(&Serial::usart1, /*invert=*/true, /*use_alt_pins=*/false);
   i8_t sport_current_idx, sport_volt_idx;
@@ -334,7 +338,7 @@ int main(void)
     u8_t now_10 = now >> 10;  // ~1/sec, print debug info..
     if (now_10 != update_10) {
       update_10 = now_10;
-      sbus.Dump();
+      //sbus.Dump();
     }      
   }
 }

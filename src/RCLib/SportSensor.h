@@ -20,7 +20,9 @@ class SportSensor {
     DATA_CURRENT_10x  = 0x0200,
     DATA_VOLTAGE_100x = 0x0210
   };  
-  SportSensor(Serial* serial, bool invert = true, bool use_alt_pins = false);
+  SportSensor(Serial* serial, bool invert = true, 
+              bool use_alt_pins = false, 
+			  bool use_pullup = false);
 
   i8_t AddSensor(u8_t sensor_id, u16_t data_id, u16_t poll_time_ms);
   void SetSensor(u8_t sensor_idx, u32_t value);

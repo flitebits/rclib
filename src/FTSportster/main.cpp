@@ -143,7 +143,7 @@ int main(void)
   i8_t sport_current_idx, sport_volt_idx;
   sport.AddFcs40Sensors(&sport_current_idx, &sport_volt_idx);
 
-  SBus sbus(&Serial::usart3, false);
+  SBus sbus(&Serial::usart1, false);
 
   Adc::ConfigurePin(VOLT_APIN);
   Adc::ConfigurePin(AMP_APIN);

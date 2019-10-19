@@ -1,6 +1,6 @@
 #include "Dbg.h"
 #include <stdio.h>
-
+#ifndef NDEBUG
 namespace dbg {
 namespace {
   int dbg_putchar(char c, FILE* stream) {
@@ -21,3 +21,4 @@ void Dbg::Setup(Serial* port) {
 }
 
 }  // namespace dbg
+#endif  // NDEBUG

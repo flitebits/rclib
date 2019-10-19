@@ -29,7 +29,7 @@ class Serial {
   
   void Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
 	     bool invert=false, bool use_alt_pins=false,
-	     u8_t mode=MODE_TX_RX, bool use_2x_mode = false);
+	     u8_t mode=MODE_TX_RX, bool use_pullup = false, bool use_2x_mode = false);
   // Returns true if at least one byte is avaialable to read.
   bool Avail();
   // Reads one byte, sets err to true if there was any issue (parity

@@ -29,6 +29,7 @@ namespace {
     // or an external 32K crystal on TOSC1 and TOSC2.
     if (use_internal_32Kclk) {
       write_ccp(&CLKCTRL.OSC32KCTRLA, 0 << CLKCTRL_RUNSTDBY_bp);
+	  write_ccp(&CLKCTRL.XOSC32KCTRLA, 0);
     } else { // enable the external clock.
       write_ccp(&CLKCTRL.XOSC32KCTRLA,
 	       CLKCTRL_CSUT_1K_gc |         // 1k cycles for start

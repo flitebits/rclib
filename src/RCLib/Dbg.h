@@ -7,8 +7,8 @@
 #include "IntTypes.h"
 
 namespace dbg {
-  enum Topic { ADC, SBUS, SPORT, LED, NUM_TOPIC };
-  enum Level { OFF, LO, MD, HI, };
+  enum Topic { ADC, SBUS, SPORT, LED, APP, NUM_TOPIC };
+  enum Level { OFF=0, LO, MD, HI, };
 
   class Dbg {
   public:
