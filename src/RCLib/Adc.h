@@ -5,9 +5,19 @@
 
 class Adc {
  public:
+  enum VRefSrc {
+	  VREF_055,  // 0.55V
+	  VREF_11,   // 1.1V
+	  VREF_15,   // 1.5V
+	  VREF_25,   // 2.5V
+	  VREF_43,   // 4.3V
+	  VREF_VREFA, // VREFA pin
+	  VREF_VDD,  // Chip input Voltage
+  };
+	  
   // Configures Adc for just under 1Mhz sample, 10bit, Vrefa external
   // ref, and enables Adc unit.
-  Adc();
+  Adc(VRefSrc src = VREF_VDD);
   void Disable();  // Disable ADC (save power)
   void Enable();  // Enable ADC
 

@@ -4,10 +4,10 @@
 #include "util.h"
 
 namespace {
-  const long max_pclk = 1000000; // Recommened max sample rate for ADC.
+  const long max_pclk = 1000000; // Recomened max sample rate for ADC.
 }
 
-Adc::Adc(){
+Adc::Adc(VRefSrc src){
   i8_t p_scale = 0;
   long pclk = GetPerClock() >> 1;  // min div is 2x
   while (pclk > max_pclk) {
@@ -15,10 +15,31 @@ Adc::Adc(){
     pclk = pclk >> 1;
   }
   
+  u8_t ref_sel = ADC_REFSEL_INTREF_gc;
+  switch (src) {
+  case VREF_VDD: ref_sel = ADC_REFSEL_VDDREF_gc; break;
+  case VREF_VREFA: ref_sel = ADC_REFSEL_VREFA_gc; break;
+  case VREF_055:
+    VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_0V55_gc;
+    break;
+  case VREF_11: 
+    VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_1V1_gc;
+    break;
+  case VREF_15:
+    VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_1V5_gc;
+    break;
+  case VREF_25:
+    VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_2V5_gc;
+    break;
+  case VREF_43:
+    VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_4V34_gc;
+    break;
+  }
+
   ADC0.CTRLA = 0;  // 10Bit, not-enabled yet.
   ADC0.CTRLB = ADC_SAMPNUM_ACC1_gc;  // No multi-sample
   ADC0.CTRLC = ((1 << ADC_SAMPCAP_bp)  |  // Reduce Sampling capacitance
-                (ADC_REFSEL_VREFA_gc) |  // Use VDD for reference
+                ref_sel |  // select Voltage reference
 		p_scale);
   ADC0.CTRLD = 0;  // No added Sample delays.                
   ADC0.CTRLE = 0;  // No windowed mode.

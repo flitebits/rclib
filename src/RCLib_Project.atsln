@@ -24,6 +24,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FTSportster", "FTSportster\
 		{6E724952-B00C-49E1-AF74-9E213A15957A} = {6E724952-B00C-49E1-AF74-9E213A15957A}
 	EndProjectSection
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "P38", "P38\P38.cppproj", "{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -54,6 +56,10 @@ Global
 		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Debug|AVR.Build.0 = Debug|AVR
 		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Release|AVR.ActiveCfg = Release|AVR
 		{01C45B4A-C425-4A74-BAA3-71F8422F898D}.Release|AVR.Build.0 = Release|AVR
+		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Debug|AVR.ActiveCfg = Debug|AVR
+		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Debug|AVR.Build.0 = Debug|AVR
+		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Release|AVR.ActiveCfg = Release|AVR
+		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

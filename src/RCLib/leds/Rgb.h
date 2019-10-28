@@ -4,8 +4,7 @@
 #include "../IntTypes.h"
 
 namespace led {
-  // You should rearrange these members so they match the order of colors
-  // for you particular type of led.
+  // These are configured for WS2812 leds.  For APA 102 it fetches them in the correct order for them.
 struct RGB {
   RGB() : grn(0), red(0), blu(0) {}
   RGB(u8_t v) : grn(v), red(v), blu(v) {}

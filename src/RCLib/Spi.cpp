@@ -122,15 +122,16 @@ void Spi::step() {
     state_ = SPI_STATE_APA102_PIXDAT0;
     break;
   case SPI_STATE_APA102_PIXDAT0:
-    SPI0.DATA = *(data_ptr_++);
+    SPI0.DATA = ((led::RGB*)data_ptr_)->blu;
     state_ = SPI_STATE_APA102_PIXDAT1;
     break;
   case SPI_STATE_APA102_PIXDAT1:
-    SPI0.DATA = *(data_ptr_++);
+    SPI0.DATA = ((led::RGB*)data_ptr_)->grn;
     state_ = SPI_STATE_APA102_PIXDAT2;
     break;
   case SPI_STATE_APA102_PIXDAT2:
-    SPI0.DATA = *(data_ptr_++);
+    SPI0.DATA = ((led::RGB*)data_ptr_)->red;
+	data_ptr_ += sizeof(led::RGB);
     if (++idx_ < len_) {
       state_ = SPI_STATE_APA102_PIXINIT;
     } else {

@@ -194,7 +194,7 @@ public:
       SetRightNav(led::clr::green);
       if (curr_mode_ != new_mode) {
         for (int i=0; i > LED_CNT; ++i) {
-	  work[i] = 0;
+          work[i] = 0;
         }
         work[TAIL_IDX] = TAIL_BASE_BRT;
         SetBody(led::clr::black);
@@ -293,11 +293,11 @@ int main(void)
     // value set for the polled device.
     sport.Run();
     if (sbus.Run()) {
-	// Run returns true of a new frame of channel data was recieved
+        // Run returns true of a new frame of channel data was recieved
       lights.UpdateMode(SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_SET_CH)),
-			SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
-			sbus.GetChannel(LIGHT_BRIGHT_CH),
-			sbus.GetChannel(LIGHT_THROTTLE_CH));
+                        SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
+                        sbus.GetChannel(LIGHT_BRIGHT_CH),
+                        sbus.GetChannel(LIGHT_THROTTLE_CH));
     }
 
     const u8_t now_4 = now >> 4;  // roughly 60fps.
@@ -312,25 +312,22 @@ int main(void)
       // since it's only actually sent to controller every couple
       // 100ms.
       if (read_volt) {
-	// 10bits (0 -> 0V, 1024 -> 5V)
-	// 4:1 voltage divider -> 1024 = 20V
-	int volts = adc.FinishRead();
-	adc.StartRead(AMP_APIN);
-	volts = ((20L * 100 * volts) + (1<<9)) >> 10;
-	volt_avg = (volt_avg == 0) ? volts :
-	  ((volt_avg * 7 + volts) + (1<<2)) >> 3;
-	sport.SetSensor(sport_volt_idx, volt_avg);
+        // 10bits (0 -> 0V, 1024 -> 5V)
+        // 4:1 voltage divider -> 1024 = 20V
+        int volts = adc.FinishRead();
+        adc.StartRead(AMP_APIN);
+        volts = ((20L * 100 * volts) + (1<<9)) >> 10;
+        sport.SetSensor(sport_volt_idx, volts);
       } else {
-	// 0.5V = 0 Amps, 4.5V = 30 Amps
-	// 1024 = 5V -> 102.4 = .5V
-	// 4V = 4 * (1024 / 5) = 819 -> 30 A
-	// 300 / 819 * 1024 = 375 (10bit FP scale)
-	const int ampsV = adc.FinishRead();
-	adc.StartRead(VOLT_APIN);
-	int amps =  ((375L * (ampsV - 102)) + (1<< 9)) >> 10;
-	amp_avg = (amp_avg == 0) ? amps :
-	  ((amp_avg * 7 + amps) + (1<<2)) >> 3;
-      	sport.SetSensor(sport_current_idx, amp_avg);
+        // 0.5V = -30 Amps, 4.5V = +30 Amps
+        // 1024 / 2 = 512 = 0 Amps
+        // 2V = 2 * (1024 / 5) = 409 -> 30 A
+	// v * 30 * 10 / 409 = A * 10
+	// scale = (300 * (1 << 16)) / 409 = ~48070
+        const int ampsV = adc.FinishRead();
+        adc.StartRead(VOLT_APIN);
+        int amps =  ((48070L * (ampsV - 500L)) + (1 << 15)) >> 16;
+        sport.SetSensor(sport_current_idx, amps);
       }
       read_volt = !read_volt;
     }
