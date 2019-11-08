@@ -42,7 +42,8 @@ void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
   }
   if (rx_enable && !one_wire) {  // In one wire mode no RX pin.
     port_->DIRCLR = 1 << (use_alt_pins ? 5 : 1);  // Rx0 input pin
-	const u8_t pin_val =  ((invert ? 1 : 0) << PORT_INVEN_bp);  // Inverted Serial
+	const u8_t pin_val = (((invert     ? 1 : 0) << PORT_INVEN_bp) |  // Inverted Serial
+			              ((use_pullup ? 1 : 0) << PORT_PULLUPEN_bp));
     if (use_alt_pins) port_->PIN5CTRL = pin_val;
     else              port_->PIN1CTRL = pin_val;
   }       

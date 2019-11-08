@@ -13,14 +13,16 @@ enum {
   ESCAPE_BYTE =  0x7D
 };
 
-SportSensor::SportSensor(Serial* serial, bool invert, bool alt_pins, bool use_pullup)
+SportSensor::SportSensor(Serial* serial, bool invert, bool alt_pins,
+			 bool use_pullup)
   : serial_(serial),
     prev_read_(0),
     crc_(0),
     poll_cnt_(1),
     num_entries_(0) {
   serial_->Setup(57600, 8, Serial::PARITY_NONE, /*stop_bits=*/1, invert,
-				 alt_pins, Serial::MODE_TX_RX_1WIRE, use_pullup = use_pullup);
+		 alt_pins, Serial::MODE_TX_RX_1WIRE,
+		 use_pullup = use_pullup);
   serial_->Disable(Serial::MODE_TX);
   serial_->Enable(Serial::MODE_RX);
 }

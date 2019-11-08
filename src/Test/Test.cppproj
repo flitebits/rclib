@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectVersion>7.0</ProjectVersion>
     <ToolchainName>com.Atmel.AVRGCC8.CPP</ToolchainName>
-    <ProjectGuid>{9797ce9e-1328-4e94-bb59-377931036e96}</ProjectGuid>
+    <ProjectGuid>{05142717-64a9-4610-a62f-5264a37ccd90}</ProjectGuid>
     <avrdevice>ATmega4809</avrdevice>
     <avrdeviceseries>none</avrdeviceseries>
     <OutputType>Executable</OutputType>
@@ -12,9 +12,9 @@
     <OutputFileName>$(MSBuildProjectName)</OutputFileName>
     <OutputFileExtension>.elf</OutputFileExtension>
     <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
-    <AssemblyName>PolarisLed</AssemblyName>
-    <Name>PolarisLed</Name>
-    <RootNamespace>PolarisLed</RootNamespace>
+    <AssemblyName>Test</AssemblyName>
+    <Name>Test</Name>
+    <RootNamespace>Test</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>
@@ -29,33 +29,21 @@
     <eraseonlaunchrule>0</eraseonlaunchrule>
     <EraseKey />
     <AsfFrameworkConfig>
-      <framework-data>
-        <options />
-        <configurations />
-        <files />
-        <documentation help="" />
-        <offline-documentation help="" />
-        <dependencies>
-          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.39.0" />
-        </dependencies>
-      </framework-data>
+      <framework-data xmlns="">
+  <options />
+  <configurations />
+  <files />
+  <documentation help="" />
+  <offline-documentation help="" />
+  <dependencies>
+    <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.47.0" />
+  </dependencies>
+</framework-data>
     </AsfFrameworkConfig>
     <avrtool>com.atmel.avrdbg.tool.atmelice</avrtool>
     <avrtoolserialnumber>J42700009245</avrtoolserialnumber>
     <avrdeviceexpectedsignature>0x1E9651</avrdeviceexpectedsignature>
     <avrtoolinterface>UPDI</avrtoolinterface>
-    <com_atmel_avrdbg_tool_nedbg>
-      <ToolOptions>
-        <InterfaceProperties>
-          <UpdiClock>750000</UpdiClock>
-        </InterfaceProperties>
-        <InterfaceName>UPDI</InterfaceName>
-      </ToolOptions>
-      <ToolType>com.atmel.avrdbg.tool.nedbg</ToolType>
-      <ToolNumber>ATML3094051800001688</ToolNumber>
-      <ToolName>nEDBG</ToolName>
-    </com_atmel_avrdbg_tool_nedbg>
-    <avrtoolinterfaceclock>500000</avrtoolinterfaceclock>
     <com_atmel_avrdbg_tool_atmelice>
       <ToolOptions>
         <InterfaceProperties>
@@ -67,19 +55,7 @@
       <ToolNumber>J42700009245</ToolNumber>
       <ToolName>Atmel-ICE</ToolName>
     </com_atmel_avrdbg_tool_atmelice>
-    <custom>
-      <ToolOptions>
-        <InterfaceProperties>
-          <UpdiClock>500000</UpdiClock>
-        </InterfaceProperties>
-        <InterfaceName>
-        </InterfaceName>
-      </ToolOptions>
-      <ToolType>custom</ToolType>
-      <ToolNumber>
-      </ToolNumber>
-      <ToolName>Custom Programming Tool</ToolName>
-    </custom>
+    <avrtoolinterfaceclock>500000</avrtoolinterfaceclock>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>

@@ -26,6 +26,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FTSportster", "FTSportster\
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "P38", "P38\P38.cppproj", "{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Test", "Test\Test.cppproj", "{05142717-64A9-4610-A62F-5264A37CCD90}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -60,6 +62,10 @@ Global
 		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Debug|AVR.Build.0 = Debug|AVR
 		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Release|AVR.ActiveCfg = Release|AVR
 		{A48CA145-0971-4AE4-A2C6-4FC9A630FF7E}.Release|AVR.Build.0 = Release|AVR
+		{05142717-64A9-4610-A62F-5264A37CCD90}.Debug|AVR.ActiveCfg = Debug|AVR
+		{05142717-64A9-4610-A62F-5264A37CCD90}.Debug|AVR.Build.0 = Debug|AVR
+		{05142717-64A9-4610-A62F-5264A37CCD90}.Release|AVR.ActiveCfg = Release|AVR
+		{05142717-64A9-4610-A62F-5264A37CCD90}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

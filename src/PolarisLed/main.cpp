@@ -277,8 +277,6 @@ int main(void)
   u8_t update_8 = 0;  // ~1/4 sec
   u8_t update_10 = 0;  // ~1 sec
 
-  int volt_avg = 0;
-  int amp_avg = 0;
   while (true) {
     const unsigned long now = FastTimeMs();
     
