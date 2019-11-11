@@ -5,7 +5,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
-
 #define write_ccp(ptr, val) \
   __asm__ __volatile__ ( \
   "out	%[ccp_reg], %[ioreg_cen_mask]	\n\t" \
@@ -22,4 +21,6 @@ u8_t GetPerClockScale();
 long GetPerClock();
 
 i8_t GetMainClockErr(bool at5V = true);
+
+void memset(void* ptr, int len, u8_t val);
 #endif /* UTIL_H_ */

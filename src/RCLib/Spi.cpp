@@ -4,6 +4,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+#include "Dbg.h"
 #include "util.h"
 
 Spi Spi::spi;
@@ -87,6 +88,7 @@ void Spi::step() {
     SPI0.INTCTRL = 0;  // Disable interrupts
     SPI0.CTRLA &= ~(1 << SPI_ENABLE_bp);  // Disable SPI 
     state_ = SPI_STATE_IDLE;
+    DBG_MD(SPI, ("Update Done\n"));
     break;
 
     // Sends one byte and stops...
@@ -377,6 +379,7 @@ void Spi::UpdateLeds(const led::RGBW* pix, int nLed, u8_t level) {
 }
 
 void Spi::Sk6812UpdateSetup(const u8_t* data, int len, u8_t level) {
+  DBG_MD(SPI, ("Update Start\n"));
   data_ptr_ = data;
   idx_ = 0;
   len_ = len;

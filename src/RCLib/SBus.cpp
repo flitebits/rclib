@@ -6,6 +6,7 @@ namespace {
   const int sbus_max_val = 2047;
   const int sbus_surr = 172;
   const long sbus_scale = (2047L << 16) / 1640;
+  int sbus_err = 0;
   void memset(u8_t* ptr, u8_t val, int len) {
     while (len--) (*ptr++) = val;
   }
@@ -16,10 +17,11 @@ SBus::SBus(Serial* serial, bool invert) :
   idx_(0), failSafe_(false), bytes_read_(0), frames_(0) {
   serial_->Setup(100000, 8, Serial::PARITY_EVEN, 2, invert,
 		 /*use_alt_pins=*/false, Serial::MODE_RX);
+  serial_->SetBuffered(true);
 }
 
 void SBus::Dump() {
-  DBG_LO(SBUS, ("SBus: %d/%d", GetDataFrames(), GetBytesRead()));
+  DBG_LO(SBUS, ("SBus: %d/%d-%d", GetDataFrames(), GetBytesRead(), sbus_err));
   for (int i=0; i<16; ++i) {
     DBG_LO(SBUS, (" 0x%x", GetChannel(i)));
   }
@@ -64,6 +66,7 @@ bool SBus::Run() {
     bytes_read_++;
     if (err) {  // error reading serial data, so don't trust anything.
       memset(data_, 0xFF, sizeof(data_));
+	  sbus_err++;
       continue;
     }
     idx_ = (idx_ + 1) & 0x1F;

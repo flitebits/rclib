@@ -29,7 +29,9 @@ class Serial {
   
   void Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
 	     bool invert=false, bool use_alt_pins=false,
-	     u8_t mode=MODE_TX_RX, bool use_pullup = false, bool use_2x_mode = false);
+	     u8_t mode=MODE_TX_RX, bool use_pullup = false,
+	     bool use_2x_mode = false);
+  void SetBuffered(bool buffered);
   // Returns true if at least one byte is avaialable to read.
   bool Avail();
   // Reads one byte, sets err to true if there was any issue (parity
@@ -58,16 +60,24 @@ class Serial {
   static Serial usart2;
   static Serial usart3;
 
+  void BufferedRead();  // Interrupt says there is a byte to read.
+
 protected:
   // protected used to construct the four usarts.
   Serial(u8_t usart_idx);
-
+  u8_t ReadInternal(bool* err);  // Reads a byte from register
+  
   u8_t idx_;
   USART_t* usart_;
   PORT_t* port_;
   int overflow_;
   int frame_err_;
   int parity_err_;
+  bool buffered_;
+  bool errored_;
+  u8_t widx_;
+  u8_t ridx_;
+  u8_t bytes_[32];
 };
 
 
