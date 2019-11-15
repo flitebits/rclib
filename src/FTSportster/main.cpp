@@ -33,7 +33,7 @@ const u8_t LIGHT_MODE_CH = 5;  // Sets Lights Mode
 const u8_t LIGHT_BRIGHT_CH = 6;  // Adjust leading edge light brightness.
 const u8_t LIGHT_THROTTLE_CH = 7;
 
-const u8_t log_map[9] = {1, 2, 4, 8, 16, 32, 64, 128, 255};
+const u8_t log_map[9] = {0, 1, 2, 5, 11, 24, 52, 115, 255};
 
 namespace {
 const led::RGB heat [5] = {
@@ -120,21 +120,24 @@ struct LedGroups {
     rightF[idx] = clr;
     rightB[kWingNLed - 1 - idx] = clr;
   }
-#define SEND_1()   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { \
+  
+#define SEND_1() { \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
+  PORTA.OUTCLR = 1<<4;	 \
   PORTA.OUTCLR = 1<<4;	 \
   PORTA.OUTCLR = 1<<4;	 \
   PORTA.OUTCLR = 1<<4;	 \
 }
-#define SEND_0()   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { \
+#define SEND_0() { \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
   PORTA.OUTSET = 1<<4;	 \
+  PORTA.OUTCLR = 1<<4;	 \
   PORTA.OUTCLR = 1<<4;	 \
   PORTA.OUTCLR = 1<<4;	 \
   PORTA.OUTCLR = 1<<4;	 \
@@ -144,25 +147,31 @@ struct LedGroups {
 }
 
   void PushLeds() {
+    int b1 = ((u8_t *)rightF)[0];
+    b1 = b1 * (curr_scale_ + 1);
     for (int i = 0; i < kTotalLed * 4; ++i) {
-      u8_t b = ((u8_t *)rightF)[i];
-      b = (b * (curr_scale_ + 1)) >> 8;
-      if (b & 0x80) SEND_1()
-      else  SEND_0();
-      if (b & 0x40) SEND_1()
-      else  SEND_0();
-      if (b & 0x20) SEND_1()
-      else  SEND_0();
-      if (b & 0x10) SEND_1()
-      else  SEND_0();
-      if (b & 0x08) SEND_1()
-      else  SEND_0();
-      if (b & 0x04) SEND_1()
-      else  SEND_0();
-      if (b & 0x02) SEND_1()
-      else  SEND_0();
-      if (b & 0x01) SEND_1()
-      else  SEND_0();
+      ATOMIC_BLOCK(ATOMIC_FORCEON) {
+    u8_t b = b1 >> 8;
+	if (b & 0x80) SEND_1()
+	  else  SEND_0();
+	if (b & 0x40) SEND_1()
+	  else  SEND_0();
+	b1 = ((u8_t *)rightF)[i + 1];
+	if (b & 0x20) SEND_1()
+	  else  SEND_0();
+	if (b & 0x10) SEND_1()
+	  else  SEND_0();
+	int cs = (curr_scale_ + 1);
+	if (b & 0x08) SEND_1()
+	  else  SEND_0();
+	if (b & 0x04) SEND_1()
+	  else  SEND_0();
+    b1 = (b1 * cs);
+	if (b & 0x02) SEND_1()
+	  else  SEND_0();
+	if (b & 0x01) SEND_1()
+	  else  SEND_0();
+      }
     }
   }
   
@@ -180,12 +189,11 @@ struct LedGroups {
       return;
     }
 
-    if (brt < 32) brt = 0;
-    if (new_level == 1) brt = brt >> 6;
-    else brt = (brt >> 3);
+	brt = logify(brt >> 3);
+    if (new_level == 1) brt = brt >> 2;
 
-    pwm_->Set(LWING_PWM, logify(brt));
-    pwm_->Set(RWING_PWM, logify(brt));
+    pwm_->Set(LWING_PWM, brt);
+    pwm_->Set(RWING_PWM, brt);
 
     if (curr_mode_ == new_mode && curr_level_ == new_level) return;
     curr_scale_ = (new_level == 1) ? 0x20 : 0xFF;
@@ -210,6 +218,7 @@ struct LedGroups {
     PushLeds();
   }
   void Update(int thr) {
+	if (curr_level_ == 0) return;
     if (curr_mode_ == 0) return;
     if (curr_mode_ == 1) PulseMode(thr);
     else TrippyMode(thr);
@@ -280,9 +289,9 @@ struct LedGroups {
   }
 
   void PulseMode(int thr) {
-    const u32_t PULSE_SCALE = 32;  // 4 bit value
-    const u32_t SPEED_SCALE = 48;  // 4 bit value
-    const i16_t PULSE_MIN = 128; 
+    const u32_t PULSE_SCALE = 25;  // 4 bit value
+    const u32_t SPEED_SCALE = 24;  // 4 bit value
+    const i16_t PULSE_MIN = 50; 
 
     // "Cool" wing leds
     for (int i=0; i < kWingNLed + 3; ++i) {
@@ -397,7 +406,7 @@ int main(void)
 
   adc.StartRead(VOLT_APIN);
 
-  const bool heartbeat_enable = false;  // True to get heartbeat on board led.
+  const bool heartbeat_enable = true;  // True to get heartbeat on board led.
   u8_t update_4 = 255;  // ~1/64 sec  (~16ms each)
   u8_t update_8 = 255;  // ~1/4 sec  (~250ms each )
   u8_t update_10 = 255;  // ~1 sec
@@ -407,8 +416,6 @@ int main(void)
     // value set for the polled device.
     sport.Run();
     if (sbus.Run()) {
-      PORTF.OUTTGL = 1 << 2;  // Toggle PF2
-      DBG_LO(APP, ("Got SBUS\n"));
       // Run returns true of a new frame of channel data was received
       leds.UpdateMode(SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH)),
                       SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
@@ -432,7 +439,6 @@ int main(void)
     u8_t now_10 = now >> 10;
     if (now_10 != update_10) {  // ~60fps
       update_10 = now_10;
-      sbus.Dump();
     }
     if (heartbeat_enable) {
       u8_t now_8 = now >> 8;

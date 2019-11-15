@@ -59,28 +59,28 @@ int SBus::GetBits(int start_byte, int start_bit) {
 }
 
 bool SBus::Run() {
-  u8_t now = FastMs();
   while(serial_->Avail()) {
-    bool err;
-    u8_t inByte = serial_->Read(&err);
+    ReadInfo info;
+    serial_->Read(&info);
     bytes_read_++;
-    if (err) {  // error reading serial data, so don't trust anything.
+    if (info.err) {  // error reading serial data, so don't trust anything.
       memset(data_, 0xFF, sizeof(data_));
 	  sbus_err++;
       continue;
     }
     idx_ = (idx_ + 1) & 0x1F;
-    data_[idx_] = inByte;
-    time_[idx_] = now;
+    data_[idx_] = info.data;
+    u8_t read_time = (info.time >> 5);  // convert to ms.
+    time_[idx_] = read_time;
 
     // Start byte should be 0x0F and end byte is 0x00
-    if (inByte != 0x00) continue;
+    if (info.data != 0x00) continue;
     u8_t start_idx = (idx_ - 24) & 0x1F;
     if (data_[start_idx] != 0x0F) continue;
 
     // All the bytes should arrive within 4ms if it takes longer
     // it is probably split across multiple messages.
-    u8_t elapsed = now - time_[start_idx];
+    u8_t elapsed = read_time - time_[start_idx];
     if (elapsed > 4) continue;
 
     failSafe_ = (data_[(start_idx + 23) & (0x1F)] & (0x3 << 2));

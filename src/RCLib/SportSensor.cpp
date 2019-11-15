@@ -74,7 +74,7 @@ void SportSensor::Run() {
 }
 
 void SportSensor::ReadAndProcess() {
-  bool err = false;
+  u8_t err = 0;
   u8_t data = serial_->Read(&err);
   if (err) {
     prev_read_ = 0;

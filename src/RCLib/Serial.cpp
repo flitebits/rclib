@@ -2,10 +2,10 @@
 
 #include <stddef.h>
 #include <avr/io.h>
-#include <avr/interrupt.h>
 #include <util/atomic.h>
 
 #include "util.h"
+#include "RtcTime.h"
 
 namespace {
   const char kNumCh[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8',
@@ -13,22 +13,27 @@ namespace {
 }
 
 Serial Serial::usart0(0);
-Serial Serial::usart1(1);
-Serial Serial::usart2(2);
-Serial Serial::usart3(3);
-
 ISR(USART0_RXC_vect) {
-  Serial::usart0.BufferedRead();  
+  Serial::usart0.ReadInterrupt();
 }
+
+Serial Serial::usart1(1);
 ISR(USART1_RXC_vect) {
-  Serial::usart1.BufferedRead();  
+  Serial::usart1.ReadInterrupt();
 }
+
+Serial Serial::usart2(2);
 ISR(USART2_RXC_vect) {
-  Serial::usart2.BufferedRead();  
+  Serial::usart2.ReadInterrupt();
 }
+
+#ifdef __AVR_ATmega4809__
+Serial Serial::usart3(3);
 ISR(USART3_RXC_vect) {
-  Serial::usart3.BufferedRead();  
+  Serial::usart3.ReadInterrupt();
 }
+#endif
+
 Serial::Serial(u8_t idx) 
   : idx_(idx), overflow_(0), frame_err_(0), parity_err_(0) {
   switch (idx_) {
@@ -40,7 +45,8 @@ Serial::Serial(u8_t idx)
 }
 void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits, 
                    bool invert, bool use_alt_pins, u8_t mode, bool use_pullup,
-		   bool use_2x_mode) {
+		   bool buffered, bool use_2x_mode) {
+  buffered_ = buffered;
   PORTMUX.USARTROUTEA = (PORTMUX.USARTROUTEA & ~(0b11 << (2 * idx_))) | 
     ((use_alt_pins ? 0b01 : 0) << (2 * idx_));
   bool tx_enable = mode & MODE_TX;
@@ -94,9 +100,12 @@ void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
   case 7: ctrlc_val |= USART_CHSIZE_7BIT_gc; break;
   default:
   case 8: ctrlc_val |= USART_CHSIZE_8BIT_gc; break;
-  }   
-  usart_->CTRLA = one_wire ? USART_LBME_bm : 0;  // Loop back mode enable (read/write to same pin)
+  }
 
+  // Loop back mode enable (read/write to same pin)
+  usart_->CTRLA = ((one_wire ? USART_LBME_bm : 0) |
+		   // Buffered mode, interrupt reads into circular buffer
+		   (buffered ? USART_RXCIF_bm : 0));
   usart_->CTRLB =
     (((rx_enable ? 1 : 0) << USART_RXEN_bp) |  // En/Disable Receive pin
      ((tx_enable ? 1 : 0) << USART_TXEN_bp) |  // En/Disable Transmit
@@ -138,15 +147,16 @@ void Serial::SetBuffered(bool buffered) {
     (usart_->CTRLA & USART_RXCIF_bm);
 }
 
-void Serial::BufferedRead() {
-  bool err;
-  bytes_[widx_] = ReadInternal(&err);
-  if (err) errored_ = true;
-  u8_t next_widx = (widx_ + 1) & ((1 << 5) - 1);
+void Serial::ReadInterrupt() {
+  ReadInfo* info = &infos_[widx_];
+  info->data = ReadInternal(&info->err);
+  info->time = RTC.CNT;
+
+  u8_t next_widx = (widx_ + 1) & ((1 << BUFFER_SZ_BITS) - 1);
   if (next_widx != ridx_) {
     widx_ = next_widx;
   } else {
-    errored_ = true;
+    info->err |= OVERFLOW_ERR_BM;
     ++overflow_;
   }
 }
@@ -165,38 +175,70 @@ bool Serial::Avail() {
   return ridx_ != widx_;
 }
 
-u8_t Serial::Read(bool* err_ptr) {
+u8_t Serial::Read() {
   if (!buffered_) {
-    return ReadInternal(err_ptr);
+    return ReadInternal(NULL);
   }
-
-  *err_ptr = errored_;
-  errored_ = false;
   u8_t result;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    result = bytes_[ridx_];
+    result = infos_[ridx_].data;
     if (ridx_ != widx_) {
-      ridx_ = (ridx_ + 1) & ((1 << 5) - 1);
+      ridx_ = (ridx_ + 1) & ((1 << BUFFER_SZ_BITS) - 1);
     }
   }
   return result;
 }
 
-u8_t Serial::ReadInternal(bool* err_ptr) {
+u8_t Serial::Read(u8_t* err_ptr) {
+  if (!buffered_) {
+    return ReadInternal(err_ptr);
+  }
+
+  u8_t result;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    ReadInfo* info = &infos_[ridx_];
+    result = info->data;
+    if (err_ptr) {
+      *err_ptr = info->err;
+    }
+
+    if (ridx_ != widx_) {
+      ridx_ = (ridx_ + 1) & ((1 << BUFFER_SZ_BITS) - 1);
+    }
+  }
+  return result;
+}
+
+void Serial::Read(ReadInfo* info_ptr) {
+  if (!buffered_) {
+    info_ptr->data = ReadInternal(&info_ptr->err);
+    info_ptr->time = RTC.CNT;
+    return;
+  }
+
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    *info_ptr = infos_[ridx_];
+    if (ridx_ != widx_) {
+      ridx_ = (ridx_ + 1) & ((1 << BUFFER_SZ_BITS) - 1);
+    }
+  }
+}
+
+u8_t Serial::ReadInternal(u8_t* err_ptr) {
   u8_t rx_hi = usart_->RXDATAH;
   u8_t rx_lo = usart_->RXDATAL;
-  bool err = false;
+  u8_t err = 0;
   if ((rx_hi & USART_BUFOVF_bm) != 0) {
     ++overflow_;
-    err = true;
+    err |= OVERFLOW_ERR_BM;
   }  
   if ((rx_hi & USART_FERR_bm) != 0) {
     ++frame_err_;
-    err = true;
+    err |= FRAME_ERR_BM;
   }    
   if ((rx_hi & USART_PERR_bm) != 0) {
     ++parity_err_;
-    err = true;
+    err |= PARITY_ERR_BM;
   }
   if (err_ptr != NULL) *err_ptr = err;
   return rx_lo;
