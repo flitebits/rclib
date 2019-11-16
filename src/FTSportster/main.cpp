@@ -12,11 +12,12 @@
 #include "Adc.h"
 #include "Pwm.h"
 #include "Rand.h"
-#include "Spi.h"
 #include "Serial.h"
 #include "SBus.h"
 #include "SportSensor.h"
 #include "Util.h"
+#include "Pins.h"
+#include "WS2812.h"
 
 // LED helper functions.
 #include "leds/Rgb.h"
@@ -56,7 +57,7 @@ u8_t logify(u8_t val) {
 
 // Note that this mixes RGBW and RGB SK6812 style leds in on string.
 // Fortunately we just need to push the bits out right and it will all
-// work, so we sort of lie to SPI and tell it there are 100 RGBW leds
+// work, so we sort of lie and say there are 100 RGBW leds
 // since that is 400 bytes.
 struct LedGroups {
   LedGroups(Pwm* pwm)
@@ -121,58 +122,8 @@ struct LedGroups {
     rightB[kWingNLed - 1 - idx] = clr;
   }
   
-#define SEND_1() { \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-}
-#define SEND_0() { \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTSET = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-  PORTA.OUTCLR = 1<<4;	 \
-}
-
   void PushLeds() {
-    int b1 = ((u8_t *)rightF)[0];
-    b1 = b1 * (curr_scale_ + 1);
-    for (int i = 0; i < kTotalLed * 4; ++i) {
-      ATOMIC_BLOCK(ATOMIC_FORCEON) {
-    u8_t b = b1 >> 8;
-	if (b & 0x80) SEND_1()
-	  else  SEND_0();
-	if (b & 0x40) SEND_1()
-	  else  SEND_0();
-	b1 = ((u8_t *)rightF)[i + 1];
-	if (b & 0x20) SEND_1()
-	  else  SEND_0();
-	if (b & 0x10) SEND_1()
-	  else  SEND_0();
-	int cs = (curr_scale_ + 1);
-	if (b & 0x08) SEND_1()
-	  else  SEND_0();
-	if (b & 0x04) SEND_1()
-	  else  SEND_0();
-    b1 = (b1 * cs);
-	if (b & 0x02) SEND_1()
-	  else  SEND_0();
-	if (b & 0x01) SEND_1()
-	  else  SEND_0();
-      }
-    }
+	SendWS2812(PinId(PIN_A4), rightF, kTotalLed * 4, curr_scale_);
   }
   
   void UpdateMode(u8_t new_level, u8_t new_mode, int brt, int thr) {
@@ -183,7 +134,6 @@ struct LedGroups {
       pwm_->Set(LWING_PWM, 0);
       pwm_->Set(RWING_PWM, 0);
       curr_scale_ = 0;
-      // Spi::spi.WaitForIdle();
       OffMode();
       PushLeds();
       return;
@@ -364,7 +314,6 @@ int main(void)
   SetupRtcClock(/*use_internal_32K=*/true);
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
-  DBG_LEVEL_LO(SPI);
   DBG_LEVEL_LO(SBUS);
 
   Adc adc(Adc::VREF_43);
@@ -373,7 +322,6 @@ int main(void)
   Adc::ConfigurePin(VOLT_APIN);
   Adc::ConfigurePin(AMP_APIN);
   
-  // Spi::spi.SetupSK6812(Spi::PINS_PA47);
   PORTA.OUTCLR = (1 << 4);  // Set PA4 low
   PORTA.PIN4CTRL = 0;  // Not inverted, not pullup enabled, no interrupts.
   PORTA.DIRSET = 1 << 4;  // Pin PA4 as output pin.
