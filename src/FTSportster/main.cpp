@@ -314,8 +314,8 @@ int main(void)
   SetupRtcClock(/*use_internal_32K=*/true);
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
-  DBG_LEVEL_LO(SBUS);
-
+  DBG_LEVEL_MD(SBUS);
+  
   Adc adc(Adc::VREF_43);
   adc.ConfigurePin(6);    // Read a "mostly random" seed from Analog pin 6 (PD6)
   randomSeed(adc.Read(6));
@@ -328,7 +328,7 @@ int main(void)
   
   SBus sbus(&Serial::usart1, /*invert=*/false);
 
-  SportSensor sport(&Serial::usart2, /*invert=*/true, /*use_alt_pins=*/false);
+  SportSensor sport(&Serial::usart2, /*invert=*/true);
   i8_t sport_current_idx, sport_volt_idx;
   sport.AddFcs40Sensors(&sport_current_idx, &sport_volt_idx);
 
@@ -349,7 +349,8 @@ int main(void)
 
   // Enable interrupts (end of init, real program begin).
   sei();
-
+  DBG_MD(APP, ("Hello World"));
+  
   leds.PushLeds();
 
   adc.StartRead(VOLT_APIN);
@@ -364,6 +365,7 @@ int main(void)
     // value set for the polled device.
     sport.Run();
     if (sbus.Run()) {
+	  DBG_LO(APP, ("Got SBus\n"));
       // Run returns true of a new frame of channel data was received
       leds.UpdateMode(SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH)),
                       SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),

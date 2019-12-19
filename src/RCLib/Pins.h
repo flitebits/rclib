@@ -89,13 +89,25 @@ i8_t GetAnalogIdx(PinId pin_id);
 PORT_t* GetPortStruct(PinGroupId);
 
 class PinId {
- public:
-   PinId(PinIdEnum pinVal) : val_(pinVal) { }
-   PinId(PinGroupId port, u8_t pin) : val_(PinIdEnum((port << 4) | pin)) { }
-   PinGroupId port() { return PinGroupId(val_ >> 4); }
-   u8_t pin() { return val_ & 0xF; }
-   PORT_t* port_ptr() { return GetPortStruct(port()); }
-   PinIdEnum val_;
+public:
+  PinId(PinIdEnum pinVal) : val_(pinVal) { }
+  PinId(PinGroupId port, u8_t pin) : val_(PinIdEnum((port << 4) | pin)) { }
+  void SetOutput(bool state = false, bool inverted = false,
+		 bool pullup = false) {
+    PORT_t* port = port_ptr();
+    u8_t pidx = pin();
+    *pin_ctrl() = ((inverted ? PORT_INVEN_bm : 0) |
+			 (pullup ? PORT_PULLUPEN_bm : 0));
+    if (state) port->OUTSET = 1 << pidx;
+    else       port->OUTCLR = 1 << pidx;
+    port->DIRSET = 1 << pidx;
+  }
+
+  PinGroupId port() { return PinGroupId(val_ >> 4); }
+  u8_t pin() { return val_ & 0xF; }
+  PORT_t* port_ptr() { return GetPortStruct(port()); }
+  register8_t* pin_ctrl() { return &((&port_ptr()->PIN0CTRL)[pin()]); }
+  PinIdEnum val_;
 };
 
 #endif

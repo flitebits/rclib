@@ -64,6 +64,7 @@ bool SBus::Run() {
     serial_->Read(&info);
     bytes_read_++;
     if (info.err) {  // error reading serial data, so don't trust anything.
+      DBG_MD(SBUS, ("SBus serial read Error: %d", info.err));
       memset(data_, 0xFF, sizeof(data_));
 	  sbus_err++;
       continue;

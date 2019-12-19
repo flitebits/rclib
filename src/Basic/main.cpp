@@ -50,7 +50,7 @@ int main(void)
   DBG_LEVEL_HI(ADC);
 
   // This reads usart 3 to get RC channel information (up to 16 channels).
-  SBus sbus(&Serial::usart3);
+  SBus sbus(&Serial::usart1);
 
   // This reads/writes usart 1 to respond to telemetry polling from
   // receiver.

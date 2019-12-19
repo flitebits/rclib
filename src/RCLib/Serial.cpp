@@ -172,7 +172,11 @@ bool Serial::Avail() {
   if (!buffered_) {
     return ((usart_->STATUS & USART_RXCIF_bm) != 0);
   }
-  return ridx_ != widx_;
+  bool result;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { 
+	  result = ridx_ != widx_;
+  }
+  return result;
 }
 
 u8_t Serial::Read() {
