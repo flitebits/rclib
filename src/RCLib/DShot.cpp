@@ -34,7 +34,7 @@ bool KissTelemetry::Parse() {
 }
 
 void KissTelemetry::Print() {
-  DBG_MD(DSHOT, ("Telemetry T:%d V:%d.%02d A:%d.%02d mAh:%d eRMP:%d00\n",
+  DBG_LO(DSHOT, ("Telemetry T:%d V:%d.%02d A:%d.%02d mAh:%d eRMP:%d00\n",
 	       temperature,
 	       volts/100, volts%100,
 	       amps/100, amps%100,
@@ -69,6 +69,7 @@ bool DShot::CheckSerial() {
     u8_t err;
     u8_t data = serial_->Read(&err);
     if (err) {
+      DBG_MD(DSHOT, ("DSHOT: Err\n"));
       telemetry_bad_ = true;
       ++telemetry_bad_cnt_;
     }
@@ -81,16 +82,16 @@ bool DShot::CheckSerial() {
       // Sending 10 bytes at 115200 should take ~1ms, so ignore after 1.5ms
       // Or if we already read 10 bytes ignore until we re-request
       // telemetry.
+      telemetry_byte_ = 10;
       continue;
     }
     telemetry_.GetBuffer()[telemetry_byte_++] = data;
     if (telemetry_byte_ != 10) continue;
 
     bool result = telemetry_.Parse();
-    if (result) {
-      telemetry_.Print();
-      return true;
-    }
+    DBG_LO_IF(DSHOT, !result, ("DSHOT: Failed parse\n"));
+    if (result) return true;
+
     telemetry_bad_ = true;
     ++telemetry_bad_cnt_;
     const u8_t* buf = telemetry_.GetBuffer();
@@ -107,8 +108,8 @@ void DShot::ClearTelemetryReq() {
   // We are going to clear the bits in the telemetry bit so fix the
   // CRC 1/2 byte first. Then set the telemetry bits to zero for all
   // channels.
-  dshot_data_[15] ^= dshot_data_[11];
-  dshot_data_[11] = 0;
+  dshot_data_[15] = ~(~dshot_data_[15] ^ ~dshot_data_[11]);
+  dshot_data_[11] = 0xFF;
 }
 
 bool DShot::Run(bool* new_telemetry) {
@@ -152,7 +153,8 @@ void DShot::SetChannel(u8_t bit, u16_t value, bool telemetry) {
     // You should always wait until you get telemtry back from one channel
     // before requesting telemetry from another channel.
     DBG_LO_IF(DSHOT, (telemetry_byte_ != 10),
-	      ("DSHOT: Telementry requested while at least one pending."));
+	      ("DSHOT: Telementry requested while one pending: %d",
+	       telemetry_byte_));
     telemetry_byte_ = 255;
   }
   u8_t crc = ((encoded >> 12) ^

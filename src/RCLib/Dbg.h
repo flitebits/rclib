@@ -1,4 +1,4 @@
-#ifndef _DGB_
+#ifndef _DBG_
 #define _DBG_
 
 #ifndef NDEBUG
