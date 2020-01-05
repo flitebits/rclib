@@ -35,7 +35,11 @@ ISR(USART3_RXC_vect) {
 #endif
 
 Serial::Serial(u8_t idx) 
-  : idx_(idx), overflow_(0), frame_err_(0), parity_err_(0) {
+  : idx_(idx)
+#ifdef SERIAL_TRACK_ERRORS
+  ,overflow_(0), frame_err_(0), parity_err_(0)
+#endif    
+{
   switch (idx_) {
     case 0: usart_ = &USART0; port_ = &PORTA; break;
     case 1: usart_ = &USART1; port_ = &PORTC; break;
@@ -153,11 +157,13 @@ void Serial::ReadInterrupt() {
   info->time = RTC.CNT;
 
   u8_t next_widx = (widx_ + 1) & ((1 << BUFFER_SZ_BITS) - 1);
-  if (next_widx != ridx_) {
-    widx_ = next_widx;
-  } else {
+  if (next_widx == ridx_) {
     info->err |= OVERFLOW_ERR_BM;
+#ifdef SERIAL_TRACK_ERRORS
     ++overflow_;
+#endif
+  } else {
+    widx_ = next_widx;
   }
 }
 
@@ -198,19 +204,10 @@ u8_t Serial::Read(u8_t* err_ptr) {
     return ReadInternal(err_ptr);
   }
 
-  u8_t result;
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    ReadInfo* info = &infos_[ridx_];
-    result = info->data;
-    if (err_ptr) {
-      *err_ptr = info->err;
-    }
-
-    if (ridx_ != widx_) {
-      ridx_ = (ridx_ + 1) & ((1 << BUFFER_SZ_BITS) - 1);
-    }
-  }
-  return result;
+  ReadInfo info;
+  Read(&info);
+  if (err_ptr) *err_ptr = info.err;
+  return info.data;
 }
 
 void Serial::Read(ReadInfo* info_ptr) {
@@ -231,20 +228,20 @@ void Serial::Read(ReadInfo* info_ptr) {
 u8_t Serial::ReadInternal(u8_t* err_ptr) {
   u8_t rx_hi = usart_->RXDATAH;
   u8_t rx_lo = usart_->RXDATAL;
-  u8_t err = 0;
+#ifdef SERIAL_TRACK_ERRORS
   if ((rx_hi & USART_BUFOVF_bm) != 0) {
     ++overflow_;
-    err |= OVERFLOW_ERR_BM;
   }  
   if ((rx_hi & USART_FERR_bm) != 0) {
     ++frame_err_;
-    err |= FRAME_ERR_BM;
   }    
   if ((rx_hi & USART_PERR_bm) != 0) {
     ++parity_err_;
-    err |= PARITY_ERR_BM;
   }
-  if (err_ptr != NULL) *err_ptr = err;
+#endif
+  if (err_ptr != NULL) {
+    *err_ptr = rx_hi & (USART_BUFOVF_bm | USART_FERR_bm | USART_PERR_bm);
+  }
   return rx_lo;
 }
 

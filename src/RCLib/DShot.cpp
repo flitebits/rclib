@@ -1,4 +1,5 @@
 #include "DShot.h"
+#include "DShotASM.h"
 #include "Pins.h"
 #include "Util.h"
 
@@ -35,10 +36,10 @@ bool KissTelemetry::Parse() {
 
 void KissTelemetry::Print() {
   DBG_LO(DSHOT, ("Telemetry T:%d V:%d.%02d A:%d.%02d mAh:%d eRMP:%d00\n",
-	       temperature,
-	       volts/100, volts%100,
-	       amps/100, amps%100,
-	       mAh, erpm));
+               temperature,
+               volts/100, volts%100,
+               amps/100, amps%100,
+               mAh, erpm));
 }
 
 DShot::DShot(Serial* serial, PinGroupId pins)
@@ -54,8 +55,8 @@ DShot::DShot(Serial* serial, PinGroupId pins)
   memset(dshot_data_, 0, sizeof(dshot_data_));
   last_cnt_5_ = RTC.CNT;
   serial_->Setup(115200, 8, Serial::PARITY_NONE, /*stop_bits=*/1,
-		 /*invert=*/false, /*alt_pins=*/false,
-		 Serial::MODE_RX, /*use_pullup=*/false, /*buffered=*/true);
+                 /*invert=*/false, /*alt_pins=*/false,
+                 Serial::MODE_RX, /*use_pullup=*/false, /*buffered=*/true);
 }
 
 bool DShot::CheckSerial() {
@@ -96,9 +97,9 @@ bool DShot::CheckSerial() {
     ++telemetry_bad_cnt_;
     const u8_t* buf = telemetry_.GetBuffer();
     DBG_HI(DSHOT,
-	   ("Buffer: %02X %02X%02X %02X%02X %02X%02X %02X%02X %02X\n",
-	    buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], 
-	    buf[6], buf[7], buf[8], buf[9]));
+           ("Buffer: %02X %02X%02X %02X%02X %02X%02X %02X%02X %02X\n",
+            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], 
+            buf[6], buf[7], buf[8], buf[9]));
     return false;
   } while (serial_->Avail());
   return false;
@@ -108,7 +109,7 @@ void DShot::ClearTelemetryReq() {
   // We are going to clear the bits in the telemetry bit so fix the
   // CRC 1/2 byte first. Then set the telemetry bits to zero for all
   // channels.
-  dshot_data_[15] = ~(~dshot_data_[15] ^ ~dshot_data_[11]);
+  dshot_data_[15] = ~(dshot_data_[15] ^ dshot_data_[11]);
   dshot_data_[11] = 0xFF;
 }
 
@@ -131,71 +132,61 @@ bool DShot::Run(bool* new_telemetry) {
 
 void DShot::ClearChannel(u8_t bit) {
   const u8_t bit_mask = ~(1 << bit);
-  dshot_mask_ &= bit_mask;
-  for (u8_t i = 0; i < 16; ++i) {
-    dshot_data_[i] &= bit_mask;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { 
+    dshot_mask_ &= bit_mask;
+    for (u8_t i = 0; i < 16; ++i) {
+      dshot_data_[i] &= bit_mask;
+    }
   }
 }
 
 void DShot::SetChannel(u8_t bit, u16_t value, bool telemetry) {
-  if (bit > 8) return;
+  if (bit >= 8) return;  // Only 0-7 possible
+
   const u8_t bit_set = 1 << bit;
   const u8_t bit_clr = ~bit_set;
-  if ((dshot_mask_ & bit_set) == 0) {
-    port_->OUTCLR = bit_set;  // Set bit low to start
-    port_->DIR |= bit_set;  // Set bit as output
-    dshot_mask_ |= bit_set;
-  }
-  
+  // You should always wait until you get telemtry back from one channel
+  // before requesting telemetry from another channel.
+  DBG_LO_IF(DSHOT, telemetry && (telemetry_byte_ != 10),
+            ("DSHOT: Telementry requested while one pending: %d",
+             telemetry_byte_));
+
   u16_t encoded = (value & ((1 << 11) - 1)) << 5;
   if (telemetry) {
     encoded |= 0x10;
-    // You should always wait until you get telemtry back from one channel
-    // before requesting telemetry from another channel.
-    DBG_LO_IF(DSHOT, (telemetry_byte_ != 10),
-	      ("DSHOT: Telementry requested while one pending: %d",
-	       telemetry_byte_));
-    telemetry_byte_ = 255;
   }
-  u8_t crc = ((encoded >> 12) ^
-              (encoded >>  8) ^
-              (encoded >>  4)) & 0x0F;
-  encoded |= crc;
-
+  u8_t crc = encoded;
+  crc ^= (encoded >>  8);
+  crc ^= (crc >> 4);
+  encoded |= (crc & 0xF);
+  
   u16_t mask = 0x8000;
-  for (u8_t i = 0; i < 16; ++i) {
-    if (encoded & mask) {  // Reversed, we want to 'clear' just zero bits.
-      dshot_data_[i] = dshot_data_[i] & bit_clr;
-    } else {
-      dshot_data_[i] = dshot_data_[i] | bit_set;
+
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { 
+    if (telemetry) {
+      telemetry_byte_ = 255;
     }
-    mask = mask >> 1;
+    if ((dshot_mask_ & bit_set) == 0) {
+      port_->OUTCLR = bit_set;  // Set bit low to start
+      port_->DIR |= bit_set;  // Set bit as output
+      dshot_mask_ |= bit_set;
+    }
+  
+    for (u8_t i = 0; i < 16; ++i) {
+      if (encoded & mask) {  // Reversed, we want to 'clear' just zero bits.
+        dshot_data_[i] &= bit_clr;
+      } else {
+        dshot_data_[i] |= bit_set;
+      }
+      mask = mask >> 1;
+    }
   }
 }
-
-#define nop() __asm__ __volatile__ ( "nop\n" )
 
 void DShot::SendDShot600() {
-  const u8_t mask = dshot_mask_;
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    for (u8_t bit_cnt = 0; bit_cnt < 16; ++bit_cnt) {
-      port_->OUTSET = mask;
-      nop();
-      nop();
-      nop();
-
-      u8_t bits = dshot_data_[bit_cnt];
-    
-      port_->OUTCLR = bits;
-      nop();
-      nop();
-      nop();
-      nop();
-      nop();
-    
-      port_->OUTCLR = mask;
-      nop();
-    }
-  }
+  register8_t* out_set = &port_->OUTSET;
+  register8_t* out_clr = &port_->OUTCLR;
+  u8_t end_byte = ((u16_t)dshot_data_) + 16;
+  u8_t data_val = 0;
+  DSHOT600_ASM(out_set, out_clr, dshot_data_, end_byte, data_val, dshot_mask_);
 }
-

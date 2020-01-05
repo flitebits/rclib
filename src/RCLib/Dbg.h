@@ -37,12 +37,12 @@ namespace dbg {
 #define DBG_LEVEL_LO(topic) ::dbg::Dbg::dbg.SetLevel(::dbg::topic, ::dbg::LO)
 #define DBG_LEVEL_MD(topic) ::dbg::Dbg::dbg.SetLevel(::dbg::topic, ::dbg::MD)
 #define DBG_LEVEL_HI(topic) ::dbg::Dbg::dbg.SetLevel(::dbg::topic, ::dbg::HI)
-#define DBG_INIT(uart, speed) do { \
-uart.Setup(speed, 8, Serial::PARITY_NONE, 1, /*invert=*/false, \
-           /*use_alt_pins=*/false, /*mode=*/Serial::MODE_TX_RX, /*use_pullup=*/false, \
-           /*buffered=*/false); \
-::dbg::Dbg::dbg.Setup(&uart);                   \
-} while(false)
+#define DBG_INIT(uart, speed) do {					\
+    uart.Setup(speed, 8, Serial::PARITY_NONE, 1, /*invert=*/false,	\
+	       /*use_alt_pins=*/false, /*mode=*/Serial::MODE_TX_RX,	\
+	       /*use_pullup=*/false, /*buffered=*/false);		\
+    ::dbg::Dbg::dbg.Setup(&uart);					\
+  } while(false)
 
 // Low frequency log line, use for status that you think most users might
 // be interested in when using.

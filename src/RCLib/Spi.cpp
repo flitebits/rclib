@@ -89,7 +89,7 @@ void Spi::step() {
     SPI0.CTRLA &= ~(1 << SPI_ENABLE_bp);  // Disable SPI 
     state_ = SPI_STATE_IDLE;
     DBG_MD(SPI, ("Update Done\n"));
-    break;
+    return;
 
     // Sends one byte and stops...
   case SPI_STATE_ONE_BYTE:
@@ -133,7 +133,7 @@ void Spi::step() {
     break;
   case SPI_STATE_APA102_PIXDAT2:
     SPI0.DATA = ((led::RGB*)data_ptr_)->red;
-	data_ptr_ += sizeof(led::RGB);
+    data_ptr_ += sizeof(led::RGB);
     if (++idx_ < len_) {
       state_ = SPI_STATE_APA102_PIXINIT;
     } else {
@@ -173,7 +173,7 @@ void Spi::step() {
     break;
   case SPI_STATE_SK6812_PIXINIT_SCALE:
     Sk6812StartByte((*(data_ptr_++) * u16_t(one_byte_data_)) >> 8);
-    state_ = SPI_STATE_SK6812_PIX1;
+    state_ = SPI_STATE_SK6812_PIX2;
     break;
   case SPI_STATE_SK6812_PIX1:
     SPI0.DATA = long_data_[1];
@@ -185,22 +185,6 @@ void Spi::step() {
     break;
   case SPI_STATE_SK6812_PIX3:
     SPI0.DATA = long_data_[3];
-    state_ = SPI_STATE_SK6812_PIX4;
-    break;
-  case SPI_STATE_SK6812_PIX4:
-    SPI0.DATA = long_data_[4];
-    state_ = SPI_STATE_SK6812_PIX5;
-    break;
-  case SPI_STATE_SK6812_PIX5:
-    SPI0.DATA = long_data_[5];
-    state_ = SPI_STATE_SK6812_PIX6;
-    break;
-  case SPI_STATE_SK6812_PIX6:
-    SPI0.DATA = long_data_[6];
-    state_ = SPI_STATE_SK6812_PIX7;
-    break;
-  case SPI_STATE_SK6812_PIX7:
-    SPI0.DATA = long_data_[7];
     if (++idx_ < len_) {
       state_ = pix_init_mode_;
     } else { // sent all data
@@ -308,8 +292,8 @@ void Spi::SetupSK6812(SpiPinOpt pins) {
     break;
   }
 
-  // We will get the clock to ~5Mhz which is 200ns/sample
-  SetClock(5000000, ((0 << SPI_DORD_bp) |    // MSB
+  // We will get the clock to ~2.5Mhz which is 400ns/sample
+  SetClock(2500000, ((0 << SPI_DORD_bp) |    // MSB
 		     (1 << SPI_MASTER_bp))); // SPI Master mode
   
   SPI0.CTRLB = ((1 << SPI_BUFEN_bp) | // Buffer Mode: enable
@@ -386,7 +370,7 @@ void Spi::Sk6812UpdateSetup(const u8_t* data, int len, u8_t level) {
   if (level == 0) {
     pix_init_mode_ = SPI_STATE_SK6812_PIXINIT_ZERO;
     for (int i=0; i < 8; ++i)
-      long_data_[i] = 0b11000000;
+      long_data_[i] = 0b10001000;
   } else if (level < 0xFF) {
     one_byte_data_ = level + 1;
     pix_init_mode_ = SPI_STATE_SK6812_PIXINIT_SCALE;
@@ -396,6 +380,7 @@ void Spi::Sk6812UpdateSetup(const u8_t* data, int len, u8_t level) {
   state_ = pix_init_mode_;
 }
 
+/*  // For using 1byte for 1 bit output, with a 5MHz clock.
 void Spi::Sk6812StartByte(u8_t val) {
   SPI0.DATA = 0b11000000 | ((val & 0x80) >> 2);
   long_data_[1] = 0b11000000 | ((val & 0x40) >> 1);
@@ -407,7 +392,6 @@ void Spi::Sk6812StartByte(u8_t val) {
   long_data_[7] = 0b11000000 | ((val & 0x01) << 5);
 }
 
-/*
 void Spi::Sk6812StartByte(u8_t val) {
   SPI0.DATA = 0b11000011 | ((val & 0x80) >> 2);
   long_data_[1] = 0b00001100 | ((val & 0x40) << 1) | ((val & 0x20) >> 4);
@@ -422,3 +406,12 @@ void Spi::Sk6812StartByte(u8_t val) {
   SPI0.DATA = long_data_[2];
 }
 */
+
+void Spi::Sk6812StartByte(u8_t val) {
+  SPI0.DATA     = 0b10001000 | ((val & 0x80) >> 1) | ((val & 0x40) >> 4);
+  long_data_[1] = 0b10001000 | ((val & 0x20) << 1) | ((val & 0x10) >> 2);
+  long_data_[2] = 0b10001000 | ((val & 0x08) << 3) | ((val & 0x04));
+  long_data_[3] = 0b10001000 | ((val & 0x02) << 5) | ((val & 0x01) << 2);
+  while (!(SPI0.INTFLAGS & (1 << SPI_DREIF_bp)));
+  SPI0.DATA = long_data_[1];
+}

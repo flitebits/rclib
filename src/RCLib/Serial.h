@@ -4,6 +4,16 @@
 #include "IntTypes.h"
 #include "avr/io.h"
 
+#ifndef NDEBUG
+// If this is defined the serial classes will increment a counter for
+// every error type encountered when reading (overflow, frame error
+// and parity error).  This can be really ueseful for debugging but is
+// generally not useful for the final build (each read can tell you if
+// it had an error which is generally more useful for code) and adds
+// time to the interrupt handler.
+#define SERIAL_TRACK_ERRORS
+#endif
+
 struct ReadInfo {
   u8_t data;
   u8_t err;    // Uses *_ERR_BM bitmasks
@@ -28,9 +38,9 @@ class Serial {
     MODE_RX_TX_1WIRE = MODE_TX | MODE_RX | MODE_1WIRE,
 
     BUFFER_SZ_BITS = 5,
-    OVERFLOW_ERR_BM = (1 << 2),
-    FRAME_ERR_BM = (1 << 1),
-    PARITY_ERR_BM = (1 << 0),
+    OVERFLOW_ERR_BM = USART_BUFOVF_bm,
+    FRAME_ERR_BM = USART_FERR_bm,
+    PARITY_ERR_BM = USART_PERR_bm,
   };
   
   // Disconnects
@@ -40,9 +50,9 @@ class Serial {
   void FlushTx();  // returns once all bytes have been written.
   
   void Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
-	     bool invert=false, bool use_alt_pins=false,
-	     u8_t mode=MODE_TX_RX, bool use_pullup = false,
-	     bool buffered = false, bool use_2x_mode = false);
+             bool invert=false, bool use_alt_pins=false,
+             u8_t mode=MODE_TX_RX, bool use_pullup = false,
+             bool buffered = false, bool use_2x_mode = false);
   void SetBuffered(bool buffered);
   // Returns true if at least one byte is avaialable to read.
   bool Avail();
@@ -86,15 +96,15 @@ protected:
   u8_t idx_;
   USART_t* usart_;
   PORT_t* port_;
+#ifdef SERIAL_TRACK_ERRORS
   u8_t overflow_;
   u8_t frame_err_;
   u8_t parity_err_;
+#endif
   bool buffered_;
   u8_t widx_;
   u8_t ridx_;
   ReadInfo infos_[1 << BUFFER_SZ_BITS];
 };
-
-
 
 #endif /* SERIAL_H_ */

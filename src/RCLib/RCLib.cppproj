@@ -179,6 +179,12 @@
     <Compile Include="DShot.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="DShotISR.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="DShotISR.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="IntTypes.h">
       <SubType>compile</SubType>
     </Compile>

@@ -97,7 +97,7 @@ public:
     PORT_t* port = port_ptr();
     u8_t pidx = pin();
     *pin_ctrl() = ((inverted ? PORT_INVEN_bm : 0) |
-			 (pullup ? PORT_PULLUPEN_bm : 0));
+		   (pullup ? PORT_PULLUPEN_bm : 0));
     if (state) port->OUTSET = 1 << pidx;
     else       port->OUTCLR = 1 << pidx;
     port->DIRSET = 1 << pidx;
