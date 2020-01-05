@@ -1,10 +1,10 @@
-/*
- * SportSensor.h
- *
- * Created: 3/30/2019 2:29:27 PM
- *  Author: Thomas DeWeese
- */ 
-
+// Copyright 2020 Thomas DeWeese
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
 
 #ifndef SPORTSENSOR_H_
 #define SPORTSENSOR_H_
