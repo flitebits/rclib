@@ -14,12 +14,7 @@
 // The exact number of nops here has been calibrated with an oscilloscope
 #define SEND_0(port, mask, skip) do {           \
     port->OUTSET = mask;                        \
-    nop();                                      \
-    nop();                                      \
     port->OUTCLR = mask;                        \
-    if (skip < 7) nop();                        \
-    if (skip < 6) nop();                        \
-    if (skip < 5) nop();                        \
     if (skip < 4) nop();                        \
     if (skip < 3) nop();                        \
     if (skip < 2) nop();                        \
@@ -30,12 +25,7 @@
     port->OUTSET = mask;                        \
     nop();                                      \
     nop();                                      \
-    nop();                                      \
-    nop();                                      \
-    nop();                                      \
     port->OUTCLR = mask;                        \
-    if (skip < 4) nop();                        \
-    if (skip < 3) nop();                        \
     if (skip < 2) nop();                        \
     if (skip < 1) nop();                        \
   } while(false)
@@ -46,7 +36,7 @@ namespace {
   void SendWS2812Full(PinId pin, void* ptr, u16_t len) __attribute__((optimize("O1")));
   
   void SendWS2812Full(PinId pin, void* ptr, u16_t len) {
-    PORT_t *port = pin.port_ptr();
+    PORT_t *const port = pin.port_ptr();
     const u8_t mask = 1 << pin.pin();
     u8_t *p = (u8_t *)ptr;
     u8_t b1 = *(p++);
@@ -75,7 +65,7 @@ namespace {
   }
 
   void SendWS2812Scale(PinId pin, void* ptr, u16_t len, u8_t scale) {
-    PORT_t *port = pin.port_ptr();
+    PORT_t *const port = pin.port_ptr();
     const u8_t mask = 1 << pin.pin();
     const u8_t scale_1 = scale + 1;
     u8_t *p = (u8_t *)ptr;

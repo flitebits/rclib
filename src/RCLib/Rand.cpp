@@ -15,6 +15,9 @@ namespace {
 void randomSeed(u16_t new_seed) {
   seed = new_seed;
 }
+void randomSeedMix(u16_t new_seed) {
+  seed ^= new_seed;
+}
 u8_t random8(u8_t range) {
   seed = seed * 134775813L + 1;
   return (u16_t(((seed >> 16) & 0xFF) + 1) * range) >> 8;

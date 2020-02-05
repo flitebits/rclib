@@ -23,6 +23,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "P38", "P38\P38.cppproj", "{
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Test", "Test\Test.cppproj", "{05142717-64A9-4610-A62F-5264A37CCD90}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Comet", "Comet\Comet.cppproj", "{40F6DEFA-1159-45EB-87E5-DE7D0AFB75FE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -57,6 +59,10 @@ Global
 		{05142717-64A9-4610-A62F-5264A37CCD90}.Debug|AVR.Build.0 = Debug|AVR
 		{05142717-64A9-4610-A62F-5264A37CCD90}.Release|AVR.ActiveCfg = Release|AVR
 		{05142717-64A9-4610-A62F-5264A37CCD90}.Release|AVR.Build.0 = Release|AVR
+		{40F6DEFA-1159-45EB-87E5-DE7D0AFB75FE}.Debug|AVR.ActiveCfg = Debug|AVR
+		{40F6DEFA-1159-45EB-87E5-DE7D0AFB75FE}.Debug|AVR.Build.0 = Debug|AVR
+		{40F6DEFA-1159-45EB-87E5-DE7D0AFB75FE}.Release|AVR.ActiveCfg = Release|AVR
+		{40F6DEFA-1159-45EB-87E5-DE7D0AFB75FE}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

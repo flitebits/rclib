@@ -117,6 +117,32 @@ RGB Lookup9(const RGB* gradient, u8_t offeset) {
   return result;
 }
 
+RGBW Lookup5(const RGBW* gradient, u8_t offset) {
+  const int idx = offset >> 6;
+  const int frac = ((offset & 0x3F) << 2);
+  const RGBW& lo = gradient[idx];
+  const RGBW& hi = gradient[idx + 1];
+  RGBW result;
+  result.red = lo.red + (((hi.red - int(lo.red)) * frac) >> 8);
+  result.grn = lo.grn + (((hi.grn - int(lo.grn)) * frac) >> 8);
+  result.blu = lo.blu + (((hi.blu - int(lo.blu)) * frac) >> 8);
+  result.wht = lo.wht + (((hi.wht - int(lo.wht)) * frac) >> 8);
+  return result;
+}
+
+RGBW Lookup9(const RGBW* gradient, u8_t offeset) {
+  const int idx = offeset >> 5;
+  const RGBW& lo = gradient[idx];
+  const RGBW& hi = gradient[idx + 1];
+  const int frac = ((offeset & 0x1F) << 3) + 1;
+  RGBW result;
+  result.red = lo.red + (((hi.red - int(lo.red)) * frac) >> 8);
+  result.grn = lo.grn + (((hi.grn - int(lo.grn)) * frac) >> 8);
+  result.blu = lo.blu + (((hi.blu - int(lo.blu)) * frac) >> 8);
+  result.wht = lo.wht + (((hi.wht - int(lo.wht)) * frac) >> 8);
+  return result;
+}
+  
 RGB HsvToRgb(const HSV& hsv) {
   int hue_fp = hsv.hue * 6;  // 8bit FP 0->6
 

@@ -103,11 +103,13 @@ bool DShot::CheckSerial() {
 
     telemetry_bad_ = true;
     ++telemetry_bad_cnt_;
-    const u8_t* buf = telemetry_.GetBuffer();
     DBG_HI(DSHOT,
            ("Buffer: %02X %02X%02X %02X%02X %02X%02X %02X%02X %02X\n",
-            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], 
-            buf[6], buf[7], buf[8], buf[9]));
+            telemetry_.GetBuffer()[0], telemetry_.GetBuffer()[1],
+	    telemetry_.GetBuffer()[2], telemetry_.GetBuffer()[3],
+	    telemetry_.GetBuffer()[4], telemetry_.GetBuffer()[5],
+	    telemetry_.GetBuffer()[6], telemetry_.GetBuffer()[7],
+	    telemetry_.GetBuffer()[8], telemetry_.GetBuffer()[9]));
     return false;
   } while (serial_->Avail());
   return false;

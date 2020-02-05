@@ -32,7 +32,6 @@
 #include "leds/Pixel.h"
 #include "leds/Clr.h"
 
-
 const u8_t RWING_PWM = 0;
 const u8_t LWING_PWM = 1;
 const u8_t VOLT_APIN = 14;

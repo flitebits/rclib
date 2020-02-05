@@ -55,7 +55,7 @@ int main(void)
   SetupRtcClock(/*use_internal_32K=*/true);
 
   DBG_INIT(Serial::usart0, 115200);
-  DBG_LEVEL_HI(ADC);
+  DBG_LEVEL_HI(APP);
 
   // This reads usart 3 to get RC channel information (up to 16 channels).
   SBus sbus(&Serial::usart1);
@@ -151,10 +151,9 @@ int main(void)
       adc.StartRead(ain_pin);
       sport.SetSensor(sport_current_idx,
 		      (((now >> 5) * 10) >> 5) & 0xFF);
-      sport.SetSensor(sport_volt_idx, (now >> 3) & 0xFFF);
-
       adc_val = adc.FinishRead();
-      DBG_LO(ADC, ("Analog: %d\n", adc_val));
+      sport.SetSensor(sport_volt_idx, adc_val & 0xFFF);
+      DBG_LO(APP, ("Analog: %d\n", adc_val));
     }
   }
 }

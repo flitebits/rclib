@@ -34,6 +34,8 @@ void Fill(RGBW* pixs, int num_pix, const RGBW& val);
 // zero is first element 255 is last element.
 RGB Lookup5(const RGB* gradient, u8_t offset);
 RGB Lookup9(const RGB* gradient, u8_t offset);
+RGBW Lookup5(const RGBW* gradient, u8_t offset);
+RGBW Lookup9(const RGBW* gradient, u8_t offset);
 
 RGB HsvToRgb(const HSV& hsv);
 RGBW HsvToRgbw(const HSV& hsv);
