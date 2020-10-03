@@ -29,7 +29,9 @@ void Blend(RGBW* dst, const RGBW& other, u8_t amount);
 // Sets all 'num_pix' entries in 'pixs' to val
 void Fill(RGB* pixs, int num_pix, const RGB& val);
 void Fill(RGBW* pixs, int num_pix, const RGBW& val);
-
+// Sets each color field to the max of the two colors.
+void Max(RGB* pix, const RGB& other);
+void Max(RGBW* pix, const RGBW& other);
 // Lookup gradient value from a 4 entry gradient.
 // zero is first element 255 is last element.
 RGB Lookup5(const RGB* gradient, u8_t offset);

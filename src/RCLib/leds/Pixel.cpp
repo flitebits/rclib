@@ -185,5 +185,17 @@ RGBW HsvToRgbw(const HSV& hsv) {
   result.wht = 0x00;
   return result;
 }
+
+void Max(RGB* pix, const RGB& other) {
+  if (pix->red < other.red) pix->red = other.red;
+  if (pix->grn < other.grn) pix->grn = other.grn;
+  if (pix->blu < other.blu) pix->blu = other.blu;
+}
+void Max(RGBW* pix, const RGBW& other){
+  if (pix->red < other.red) pix->red = other.red;
+  if (pix->grn < other.grn) pix->grn = other.grn;
+  if (pix->blu < other.blu) pix->blu = other.blu;
+  if (pix->wht < other.wht) pix->wht = other.wht;
+}
   
 }  // namespace led

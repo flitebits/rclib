@@ -51,7 +51,7 @@ pix_t rgb_data[] = {
 int main(void)
 {
   // Do very basic chip config, in particular setup base clocks.
-  Boot(/*target_pdiv=*/2, /*use_internal_32Kclk=*/true);
+  Boot(/*target_pdiv=*/1, /*use_internal_32Kclk=*/true);
   SetupRtcClock(/*use_internal_32K=*/true);
 
   DBG_INIT(Serial::usart0, 115200);
