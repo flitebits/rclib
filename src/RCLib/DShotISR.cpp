@@ -14,12 +14,10 @@
 #include <util/atomic.h>
 
 namespace {
-  register8_t* out_set = NULL;
-  register8_t* out_clr = NULL;
-  u8_t* data_ptr = NULL;
-  u8_t end_byte;
-  u8_t mask_val = 0;
-  bool sent_dshot = false;
+  BitBang* gBitBang = NULL;
+  u8_t* gDShotData = NULL;
+  u8_t gDShotMask = 0;
+  bool gSentDShot = false;
 }
 
 
@@ -28,18 +26,17 @@ namespace {
 
 ISR(TCBn_vect) {
   TCBn.INTFLAGS = 1;
-  u8_t data_val = 0;
-  DSHOT600_ASM(out_set, out_clr, data_ptr, end_byte, data_val, mask_val);
-  sent_dshot = true;
+  gBitBang->SendDShot600(gDShotData, gDShotMask);
+  gSentDShot = true;
   // We are going to clear the bits in the telemetry bit so fix the
   // CRC 1/2 byte first. Then set the telemetry bits to zero for all
   // channels.
-  data_ptr[15] = ~(data_ptr[15] ^ data_ptr[11]);
-  data_ptr[11] = mask_val;  // Clear telemetry for all chanels.
+  gDShotData[15] = ~(gDShotData[15] ^ gDShotData[11]);
+  gDShotData[11] = gDShotMask;  // Clear telemetry for all chanels.
 }
 
-DShotISR::DShotISR(Serial* serial, PinGroupId pins)
-  : DShot(serial, pins) {
+DShotISR::DShotISR(Serial* serial, BitBang* bitbang)
+  : DShot(serial, bitbang) {
   long per_clk_sec = GetPerClock();
   u16_t per_clk_ms = per_clk_sec / 1000;
   TCBn.CTRLA = 0;  // CLK_PER = 1, not enabled.
@@ -48,12 +45,10 @@ DShotISR::DShotISR(Serial* serial, PinGroupId pins)
 }
 
 void DShotISR::Start() {
-  out_set = &port_->OUTSET;
-  out_clr = &port_->OUTCLR;
-  data_ptr = dshot_data_;
-  end_byte = ((u16_t)dshot_data_) + 16;
-  mask_val = dshot_mask_;
-  sent_dshot = false;
+  gBitBang = bitbang_;
+  gDShotData = dshot_data_;
+  gDShotMask = dshot_mask_;
+  gSentDShot = false;
   
   TCBn.INTCTRL = 1;  // Enable interrupt
   TCBn.CTRLA = 1;  // Enable the counter
@@ -62,8 +57,8 @@ void DShotISR::Start() {
 bool DShotISR::Run(bool* new_telemetry) {
   bool result;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { 
-    result = sent_dshot;
-    sent_dshot = false;
+    result = gSentDShot;
+    gSentDShot = false;
   }
   bool got_telemetry = CheckSerial();
   if (new_telemetry) {

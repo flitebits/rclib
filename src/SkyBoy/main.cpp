@@ -48,10 +48,10 @@
 #define LWBK_PWM (4)
 #define RWBK_PWM (5)
 
-#define LIGHT_LEVEL_CH (4)  // Turns lights off/Low/Hi
-#define LIGHT_MODE_CH (5)  // Sets Lights Mode
-#define LIGHT_BRIGHT_CH (6)  // Adjust leading edge light brightness.
-#define LIGHT_THROTTLE_CH (7)
+#define LIGHT_LEVEL_CH (5)  // Turns lights off/Low/Hi
+#define LIGHT_MODE_CH (6)  // Sets Lights Mode
+#define LIGHT_BRIGHT_CH (7)  // Adjust leading edge light brightness.
+#define LIGHT_THROTTLE_CH (8)
 
 #define LED_PIN (PIN_C2)
 
@@ -86,6 +86,8 @@ public:
     curr_mode_(255),
     pwm_scale_(1<<4),
     tip_flash_idx_(0),
+    trip_loc_(0),
+    trip_hue_(0),
     pwm_(pwm) {
     OffMode();
   }
@@ -126,64 +128,76 @@ public:
       return;
     }
 
-    if (brt < 32) brt = 0;
-    else {
-      brt = (brt >> 3);  // convert 11 bits to 8 bits.
-    }
+    brt = (brt < 32) ? 0 : (brt >> 3); // convert 11 bits to 8 bits.
     if (brt > 255) brt = 255;
     if (new_level == 1) brt = brt >> 2;
     pwm_->Set(LLAND_PWM, brt);
     pwm_->Set(RLAND_PWM, brt);
 
-    if (curr_mode_ == new_mode && curr_level_ == new_level) return;
     curr_scale_ = (new_level == 1) ? 0x40 : 0xFF;
+    switch (new_mode) {
+    case 0: brt = curr_scale_; break;
+    case 1: {
+      int cs = curr_scale_ >> 2;
+      if (brt < cs) brt = cs;
+      brt = (brt * (int)pwm_scale_ + (1<<3)) >> 4;
+      if (brt > 255) brt = 255;
+      break;
+    }
+    case 2: break;
+    }
+    pwm_->Set(LWFT_PWM, brt);
+    pwm_->Set(RWFT_PWM, brt);
+    pwm_->Set(LWBK_PWM, brt);
+    pwm_->Set(RWBK_PWM, brt);
+
+    if (curr_mode_ == new_mode && curr_level_ == new_level) return;
     switch (new_mode) {
     case 0:
       SetLeftNav(led::clr::red);
       SetRightNav(led::clr::green);
       SetWing(led::wclr::white, BOTH_SIDES);
       SetTail(led::clr::white);
-      brt = (brt * (int)pwm_scale_ + (1<<3)) >> 4;
-      if (brt > 255) brt = 255;
-      pwm_->Set(LWFT_PWM, brt);
-      pwm_->Set(RWFT_PWM, brt);
-      pwm_->Set(LWBK_PWM, brt);
-      pwm_->Set(RWBK_PWM, brt);
+      brt = curr_scale_;
       break;
-    case 1:
+    case 1: {
       SetLeftNav(led::clr::red);
       SetRightNav(led::clr::green);
       SetTail(led::clr::white);
-      pwm_->Set(LWFT_PWM, 0);
-      pwm_->Set(RWFT_PWM, 0);
-      pwm_->Set(LWBK_PWM, 0);
-      pwm_->Set(RWBK_PWM, 0);
       if (curr_mode_ != new_mode) {
         SetWing(led::wclr::black);
 	memset(work, 0, sizeof(work));
       }      
+      int cs = curr_scale_ >> 2;
+      if (brt < cs) brt = cs;
+      brt = (brt * (int)pwm_scale_ + (1<<3)) >> 4;
+      if (brt > 255) brt = 255;
       break;
+    }
     case 2:
       SetLeftNav(led::clr::red);
       SetRightNav(led::clr::green);
       SetTail(led::clr::white);
-      pwm_->Set(LWFT_PWM, 0);
-      pwm_->Set(RWFT_PWM, 0);
-      pwm_->Set(LWBK_PWM, 0);
-      pwm_->Set(RWBK_PWM, 0);
       if (curr_mode_ != new_mode) {
         SetWing(led::wclr::black);
-      }      
+	trip_loc_ = 0;
+	trip_hue_ = 0;
+      }
       break;
     }
+    pwm_->Set(LWFT_PWM, brt);
+    pwm_->Set(RWFT_PWM, brt);
+    pwm_->Set(LWBK_PWM, brt);
+    pwm_->Set(RWBK_PWM, brt);
     curr_level_ = new_level;
     curr_mode_ = new_mode;
   }
 
-  void Update(int thr) {
+  void Update(int brt, int thr) {
     switch (curr_mode_) {
+    default:
     case 0: break;
-    case 1: PulseMode(thr); break;
+    case 1: PulseMode(brt, thr); break;
     case 2: Trippy(thr); break;
     }
     PushLeds();
@@ -194,7 +208,7 @@ public:
   }
 
 
-  void PulseMode(int thr) {
+  void PulseMode(int brt, int thr) {
     const u32_t SPEED_SCALE = 32;  // 4 bit value
     const u32_t PULSE_SCALE = 32;  // 4 bit value
     const i16_t PULSE_MIN   = 32; 
@@ -204,7 +218,7 @@ public:
       work[i] = (work[i] * int(0xF0)) >> 8;
     }
     // Cool pwm boost...
-    pwm_scale_ = pwm_scale_ + (((0x10 - pwm_scale_) * 0xF0) >> 8);
+    pwm_scale_ = pwm_scale_ + (((0x10 - pwm_scale_) * 0x10) >> 8);
 
     // pulse_val is logically 12 bits
     static int pulse_val = 0;  // 12 bit (0 -> 1)
@@ -252,6 +266,17 @@ public:
       lwing[i] = clr;
       rwing[i] = clr;
     }
+
+    int cs = curr_scale_ >> 2;
+    brt = (brt < 32) ? 0 : (brt >> 3); // convert 11 bits to 8 bits.
+    if (curr_level_ == 1) brt = brt >> 2;
+    if (brt < cs) brt = cs;
+    brt = (brt * (int)pwm_scale_ + (1<<3)) >> 4;
+    if (brt > 255) brt = 255;
+    pwm_->Set(LWFT_PWM, brt);
+    pwm_->Set(RWFT_PWM, brt);
+    pwm_->Set(LWBK_PWM, brt);
+    pwm_->Set(RWBK_PWM, brt);
   }
 
   void Trippy(int thr) {
@@ -260,27 +285,25 @@ public:
     const u32_t HUE_SCALE   =  4;  // 5 bit value
     const u32_t HUE_MIN     =  2;  // 5 bit value
   
-    static int pulse_hue = 0;
-    pulse_hue += HUE_MIN + ((thr * HUE_SCALE + (1 << 7)) >> 8);
-    const led::RGB pix = led::HsvToRgb(led::HSV(pulse_hue>>6, 0xFF, 0xFF));
+    trip_hue_ += HUE_MIN + ((thr * HUE_SCALE + (1 << 7)) >> 8);
+    const led::RGB pix = led::HsvToRgb(led::HSV(trip_hue_ >> 6, 0xFF, 0xFF));
 
-    static int pulse_loc = 0;  // Has 8 bits frac (0 -> WING_CNT)
-    u8_t prev_pulse_idx = ((pulse_loc + (1 << 7)) >> 8);
-    pulse_loc += SPEED_MIN + ((thr * SPEED_SCALE + (1 << 7)) >> 8);
-    u8_t pulse_idx = ((pulse_loc + (1 << 7)) >> 8);
-    if (pulse_idx >= WING_CNT) {  // wrap the pulse back to start.
-      led::Fill(lwing + prev_pulse_idx,
-		WING_CNT - prev_pulse_idx, pix);
-      led::Fill(rwing + prev_pulse_idx,
-		WING_CNT - prev_pulse_idx, pix);
-      prev_pulse_idx = 0;
-      pulse_loc -= (WING_CNT << 8);
-      pulse_idx -= WING_CNT;
+    u8_t prev_trip_idx = trip_loc_ >> 8;
+    trip_loc_ += SPEED_MIN + ((thr * SPEED_SCALE + (1 << 7)) >> 8);
+    u8_t trip_idx = trip_loc_ >> 8;
+    if (trip_idx >= WING_CNT) {  // wrap the pulse back to start.
+      led::Fill(lwing + prev_trip_idx,
+		WING_CNT - prev_trip_idx, pix);
+      led::Fill(rwing + prev_trip_idx,
+		WING_CNT - prev_trip_idx, pix);
+      trip_loc_ -= (WING_CNT << 8);
+      prev_trip_idx = 0;
+      trip_idx = trip_loc_ >> 8;
     }
-    led::Fill(lwing + prev_pulse_idx,
-	      pulse_idx - prev_pulse_idx + 1, pix);
-    led::Fill(rwing + prev_pulse_idx,
-	      pulse_idx - prev_pulse_idx + 1, pix);
+    led::Fill(lwing + prev_trip_idx,
+	      trip_idx - prev_trip_idx + 1, pix);
+    led::Fill(rwing + prev_trip_idx,
+	      trip_idx - prev_trip_idx + 1, pix);
   }
 
 protected:
@@ -289,6 +312,8 @@ protected:
   u8_t curr_mode_;   // Modes, 0 -> static, 1 -> pulse, 2 -> ???
   u8_t pwm_scale_;   // 4.4 FP
   u8_t tip_flash_idx_;
+  u16_t trip_loc_;
+  u16_t trip_hue_;
   Pwm* pwm_;
   led::RGBW lwing[LWING_CNT];
   led::RGB ltip[LTIP_CNT];
@@ -331,40 +356,34 @@ int main(void)
   
   u8_t update_4 = 0;  // ~1/64 sec
   u8_t update_8 = 0;  // ~1/4 sec
-  u8_t update_9 = 0;  // ~1 sec
+  u8_t update_9 = 0;  // ~1/2 sec
   while (true) {
-    const i16_t now = FastMs();
+    const u16_t now = FastMs();
     
     if (sbus.Run()) {
       u8_t level = SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH));
       u8_t mode = SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH));
       int brt = sbus.GetChannel(LIGHT_BRIGHT_CH);
       int thr = sbus.GetChannel(LIGHT_THROTTLE_CH);
-      level = 1;
-      mode = 1;
-      brt = 128;
-      thr = 0;
       // Run returns true of a new frame of channel data was recieved
       lights.UpdateMode(level, mode, brt, thr);
     }
 
-    const u8_t now_8 = now >> 8; // 1/4 sec (1024 / 256)
-    if (now_8 != update_8) {
-      update_8 = now_8;
-      PORTF.OUTTGL = (1 << 2);  // Pin PF2 toggle, simple heartbeat.
-    }
-
     const u8_t now_4 = now >> 4;  // roughly 60fps.
-    if (update_4 != now_4) {
-      update_4 = now_4;
-      lights.UpdateMode(1, 0, 512, 0);
-      lights.Update(sbus.GetChannel(LIGHT_THROTTLE_CH));
-    }
+    if (update_4 == now_4) continue;
+    update_4 = now_4;
+
+    lights.Update(sbus.GetChannel(LIGHT_BRIGHT_CH),
+		  sbus.GetChannel(LIGHT_THROTTLE_CH));
+
+    const u8_t now_8 = now >> 8; // 1/4 sec (1024 / 256)
+    if (now_8 == update_8) continue;
+    update_8 = now_8;
+    PORTF.OUTTGL = (1 << 2);  // Pin PF2 toggle, simple heartbeat.
 
     u8_t now_9 = now >> 9;  // ~.5/sec, print debug info..
-    if (now_9 != update_9) {
-      update_9 = now_9;
-      sbus.Dump();
-    }      
+    if (now_9 == update_9) continue;
+    update_9 = now_9;
+    sbus.Dump();
   }
 }

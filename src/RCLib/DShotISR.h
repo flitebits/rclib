@@ -11,9 +11,12 @@
 
 #include "DShot.h"
 
+#include "BitBang.h"
+#include "Serial.h"
+
 class DShotISR : public DShot {
  public:
-  DShotISR(Serial* serial, PinGroupId pins);
+  DShotISR(Serial* serial, BitBang* bitbang);
 
   virtual void Start();
   virtual bool Run(bool* new_telemetry);

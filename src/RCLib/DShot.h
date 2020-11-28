@@ -9,24 +9,13 @@
 #ifndef _DSHOT_
 #define _DSHOT_
 
+
+#include "BitBang.h"
 #include "Dbg.h"
 #include "IntTypes.h"
+#include "KissTelemetry.h"
 #include "Pins.h"
 #include "Serial.h"
-
-struct KissTelemetry {
-  i8_t temperature;
-  u16_t volts;   // Volt * 100
-  u16_t amps;  // Amps * 100
-  u16_t mAh; // milliamp Hours consumed
-  u16_t erpm;  // ERpm / 100
-  u8_t crc;
-  u8_t buffer[10];
-  u8_t *GetBuffer() { return buffer; }
-
-  bool Parse();
-  void Print();
-};
 
 // This implements DShot600 protocol including requesting telemetry.
 // Note that this is incompatible with long WS2812/SK6812 Led strings.
@@ -41,7 +30,8 @@ struct KissTelemetry {
 // DShot between updates of the LEDs (don't use the ISR version).
 class DShot {
  public:
-  DShot(Serial* serial, PinGroupId pins);
+  DShot(Serial* serial, BitBang* bitbang);
+  DShot(Serial* serial, PinGroupId pin_group);
   virtual void Start() { }
   
   // Returns true if it send a DShot blast.
@@ -61,15 +51,15 @@ class DShot {
   u8_t dshot_data_[16];
   u8_t last_cnt_5_;
   Serial* serial_;
-  PORT_t* port_;
+  BitBang* bitbang_;
 
   KissTelemetry telemetry_;
   u8_t telemetry_request_mask_;
   u8_t telemetry_awaiting_mask_;
-  u8_t telemetry_byte_;
+  u8_t telemetry_status_;
   u8_t telemetry_time_;
   bool telemetry_bad_;
-  int telemetry_bad_cnt_;
+  int telemetry_err_cnt_;
   int telemetry_fail_cnt_;
 };
 

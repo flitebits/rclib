@@ -12,106 +12,89 @@
 #include "Util.h"
 
 #include <util/atomic.h>
+BitBang gBitBang;
 
-bool KissTelemetry::Parse() {
-  // One transmission will have 10 8-bit bytes sent with 115200 baud and 3.6V.
-  // Byte 0: Temperature (Deg C)
-  // Byte 1: Voltage high byte (Volt * 100)
-  // Byte 2: Voltage low byte
-  // Byte 3: Current high byte (Amp * 100)
-  // Byte 4: Current low byte
-  // Byte 5: Consumption high byte (mAh)
-  // Byte 6: Consumption low byte
-  // Byte 7: Rpm high byte (ERpm / 100)
-  // Byte 8: Rpm low byte
-  // Byte 9: 8-bit CRC
-  u8_t rec_crc = 0;
-  for (int i = 0; i < 9; ++i) {
-    rec_crc ^= buffer[i];
-    for (int j = 0; j < 8; ++j) {
-      rec_crc = ((rec_crc & 0x80) ? 0x07 ^ (rec_crc << 1) : (rec_crc << 1)) ;
-    }
-  }
-  if (rec_crc != buffer[9]) return false;
-  temperature = buffer[0];
-  volts = (buffer[1] << 8) | buffer[2];
-  amps  = (buffer[3] << 8) | buffer[4];
-  mAh   = (buffer[5] << 8) | buffer[6];
-  erpm  = (buffer[7] << 8) | buffer[8];
-  crc = buffer[9];
-  return true;
-}
-
-void KissTelemetry::Print() {
-  DBG_LO(DSHOT, ("Telemetry T:%d V:%d.%02d A:%d.%02d mAh:%d eRMP:%d00\n",
-               temperature,
-               volts/100, volts%100,
-               amps/100, amps%100,
-               mAh, erpm));
-}
-
-DShot::DShot(Serial* serial, PinGroupId pins)
+DShot::DShot(Serial* serial, PinGroupId pin_group)
   : dshot_mask_(0),
     serial_(serial),
-    port_(GetPortStruct(pins)),
-    telemetry_byte_(10),
+    telemetry_status_(1),
     telemetry_time_(0),
     telemetry_bad_(false),
-    telemetry_bad_cnt_(0),
+    telemetry_err_cnt_(0),
+    telemetry_fail_cnt_(0)
+{
+  gBitBang.SetPort(pin_group);
+  bitbang_ = &gBitBang;
+  memset(dshot_data_, 0, sizeof(dshot_data_));
+  last_cnt_5_ = RTC.CNT;
+  KissTelemetry::ConfigureSerial(serial, false, false);
+}
+
+DShot::DShot(Serial* serial, BitBang* bitbang)
+  : dshot_mask_(0),
+    serial_(serial),
+    bitbang_(bitbang),
+    telemetry_status_(1),
+    telemetry_time_(0),
+    telemetry_bad_(false),
+    telemetry_err_cnt_(0),
     telemetry_fail_cnt_(0)
 {
   memset(dshot_data_, 0, sizeof(dshot_data_));
   last_cnt_5_ = RTC.CNT;
-  serial_->Setup(115200, 8, Serial::PARITY_NONE, /*stop_bits=*/1,
-                 /*invert=*/false, /*alt_pins=*/false,
-                 Serial::MODE_RX, /*use_pullup=*/false, /*buffered=*/true);
+  KissTelemetry::ConfigureSerial(serial, false, false);
 }
 
 bool DShot::CheckSerial() {
   if (!serial_->Avail()) return false;
-  if (telemetry_byte_ == 255) {
+    
+  if (telemetry_status_ == 1) {
     telemetry_time_ = RTC.CNT;
-    telemetry_byte_ = 0;
+    telemetry_status_ = 0;
     telemetry_bad_ = false;
+  } else if (telemetry_status_ == 2) {
+    while (serial_->Avail()) {
+      u8_t err;
+      serial_->Read(&err);
+    }
+    return false;
   }
   do {
     u8_t err;
     u8_t data = serial_->Read(&err);
     if (err) {
       DBG_MD(DSHOT, ("DSHOT: Err\n"));
-      telemetry_bad_ = true;
-      ++telemetry_bad_cnt_;
+      ++telemetry_err_cnt_;
     }
-    if (telemetry_bad_ || telemetry_byte_ == 10) {
+    if (telemetry_bad_) {
+      telemetry_.ResetBuffer();
       continue;
     }
 
     u8_t now_rtc = RTC.CNT;
-    if (now_rtc - telemetry_time_ > 48 ) {
-      // Sending 10 bytes at 115200 should take ~1ms, so ignore after 1.5ms
-      // Or if we already read 10 bytes ignore until we re-request
-      // telemetry.
-      telemetry_byte_ = 10;
+    if (now_rtc - telemetry_time_ > 100) {
+      // Sending 10 bytes at 115200 should take ~1ms, so ignore after 3ms
+      // until we re-request telemetry.
+      telemetry_bad_ = true;
       continue;
     }
-    telemetry_.GetBuffer()[telemetry_byte_++] = data;
-    if (telemetry_byte_ != 10) continue;
+    telemetry_.AddByte(data);
 
-    bool result = telemetry_.Parse();
-    DBG_LO_IF(DSHOT, !result, ("DSHOT: Failed parse\n"));
-    if (result) return true;
-
-    telemetry_bad_ = true;
-    ++telemetry_bad_cnt_;
-    DBG_HI(DSHOT,
-           ("Buffer: %02X %02X%02X %02X%02X %02X%02X %02X%02X %02X\n",
-            telemetry_.GetBuffer()[0], telemetry_.GetBuffer()[1],
-	    telemetry_.GetBuffer()[2], telemetry_.GetBuffer()[3],
-	    telemetry_.GetBuffer()[4], telemetry_.GetBuffer()[5],
-	    telemetry_.GetBuffer()[6], telemetry_.GetBuffer()[7],
-	    telemetry_.GetBuffer()[8], telemetry_.GetBuffer()[9]));
-    return false;
+    KissTelemetry::ParseResult result = telemetry_.Parse();
+    if (result == KissTelemetry::kSuccess) {
+      telemetry_status_ = 2;
+      return true;
+    }
+    if (result == KissTelemetry::kNotReady) { continue; }
+    DBG_LO(DSHOT, ("DSHOT: Failed parse\n"));
   } while (serial_->Avail());
+
+  DBG_HI(DSHOT, ("Buffer:"));
+  const u8_t* buf = telemetry_.GetBuffer();
+  for(int i=0; i < 16; ++ i) {
+    DBG_HI(DSHOT, ("%02X", buf[i]));
+  }
+  DBG_HI(DSHOT, ("\n"));
   return false;
 }
 
@@ -157,9 +140,8 @@ void DShot::SetChannel(u8_t bit, u16_t value, bool telemetry) {
   const u8_t bit_clr = ~bit_set;
   // You should always wait until you get telemtry back from one channel
   // before requesting telemetry from another channel.
-  DBG_LO_IF(DSHOT, telemetry && (telemetry_byte_ != 10),
-            ("DSHOT: Telementry requested while one pending: %d",
-             telemetry_byte_));
+  DBG_LO_IF(DSHOT, telemetry && (!telemetry_bad_) && (telemetry_status_ == 0),
+            ("DSHOT: Telemetry requested while one pending\n"));
 
   u16_t encoded = (value & ((1 << 11) - 1)) << 5;
   if (telemetry) {
@@ -174,18 +156,17 @@ void DShot::SetChannel(u8_t bit, u16_t value, bool telemetry) {
 
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { 
     if (telemetry) {
-      telemetry_byte_ = 255;
+      telemetry_status_ = 1;
     }
     if ((dshot_mask_ & bit_set) == 0) {
-      port_->OUTCLR = bit_set;  // Set bit low to start
-      port_->DIR |= bit_set;  // Set bit as output
       dshot_mask_ |= bit_set;
+      bitbang_->AddPin(bit);
     }
   
     for (u8_t i = 0; i < 16; ++i) {
       if (encoded & mask) {  // Reversed, we want to 'clear' just zero bits.
         dshot_data_[i] &= bit_clr;
-      } else {
+       } else {
         dshot_data_[i] |= bit_set;
       }
       mask = mask >> 1;
@@ -194,9 +175,5 @@ void DShot::SetChannel(u8_t bit, u16_t value, bool telemetry) {
 }
 
 void DShot::SendDShot600() {
-  register8_t* out_set = &port_->OUTSET;
-  register8_t* out_clr = &port_->OUTCLR;
-  u8_t end_byte = ((u16_t)dshot_data_) + 16;
-  u8_t data_val = 0;
-  DSHOT600_ASM(out_set, out_clr, dshot_data_, end_byte, data_val, dshot_mask_);
+  bitbang_->SendDShot600(dshot_data_, dshot_mask_);
 }

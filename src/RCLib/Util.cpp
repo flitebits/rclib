@@ -87,3 +87,21 @@ void memset(void* ptr, int len, u8_t val){
     *(p++) = val;
   }
 }
+
+void memmove(void* dst, void* src, u16_t len) {
+  u8_t *d = static_cast<u8_t*>(dst);
+  u8_t *s = static_cast<u8_t*>(src);
+  if (d < s) {
+    while (len) {
+      *(d++) = *(s++);
+      --len;
+    }
+  } else {
+    d = d + len - 1;
+    s = s + len - 1;
+    while (len) {
+      *(d--) = *(s--);
+      --len;
+    }
+  }
+}

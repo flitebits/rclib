@@ -99,7 +99,8 @@ PORT_t* GetPortStruct(PinGroupId);
 class PinId {
 public:
   PinId(PinIdEnum pinVal) : val_(pinVal) { }
-  PinId(PinGroupId port, u8_t pin) : val_(PinIdEnum((port << 4) | pin)) { }
+  PinId(PinGroupId pin_group, u8_t pin) :
+    val_(PinIdEnum((pin_group << 4) | pin)) { }
   void SetOutput(bool state = false, bool inverted = false,
 		 bool pullup = false) {
     PORT_t* port = port_ptr();

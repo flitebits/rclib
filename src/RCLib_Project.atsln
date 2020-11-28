@@ -29,6 +29,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "RoomLed", "RoomLed\RoomLed.
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "SkyBoy", "SkyBoy\SkyBoy.cppproj", "{2D769914-1208-45AC-B8A2-9BEAD9319E6C}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "WingTelem", "WingTelem\WingTelem.cppproj", "{9F03E2DC-8255-474E-A9BA-F16996361FA1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -75,6 +77,10 @@ Global
 		{2D769914-1208-45AC-B8A2-9BEAD9319E6C}.Debug|AVR.Build.0 = Debug|AVR
 		{2D769914-1208-45AC-B8A2-9BEAD9319E6C}.Release|AVR.ActiveCfg = Release|AVR
 		{2D769914-1208-45AC-B8A2-9BEAD9319E6C}.Release|AVR.Build.0 = Release|AVR
+		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Debug|AVR.ActiveCfg = Debug|AVR
+		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Debug|AVR.Build.0 = Debug|AVR
+		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Release|AVR.ActiveCfg = Release|AVR
+		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
