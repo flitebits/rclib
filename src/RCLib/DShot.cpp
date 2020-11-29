@@ -89,12 +89,14 @@ bool DShot::CheckSerial() {
     DBG_LO(DSHOT, ("DSHOT: Failed parse\n"));
   } while (serial_->Avail());
 
+#ifndef NDEBUG
   DBG_HI(DSHOT, ("Buffer:"));
   const u8_t* buf = telemetry_.GetBuffer();
   for(int i=0; i < 16; ++ i) {
     DBG_HI(DSHOT, ("%02X", buf[i]));
   }
   DBG_HI(DSHOT, ("\n"));
+#endif // NDEBUG  
   return false;
 }
 

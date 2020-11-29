@@ -30,6 +30,6 @@ long GetPerClock();
 
 i8_t GetMainClockErr(bool at5V = true);
 
-void memset(void* ptr, int len, u8_t val);
+void memset(void* ptr, u8_t val, int len);
 void memmove(void* dst, void* src, u16_t len);
 #endif /* UTIL_H_ */

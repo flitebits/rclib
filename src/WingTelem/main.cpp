@@ -15,7 +15,8 @@
 #include "IntTypes.h"
 #include "RtcTime.h"
 
-#include "DShot.h"
+#include "KissTelemetry.h"
+#include "Pins.h"
 #include "Serial.h"
 #include "SportSensor.h"
 
@@ -42,7 +43,6 @@ int main(void)
   DBG_MD(APP, ("Hello World: WingTelem\n"));
   
   KissTelemetry telemetry;
-  u8_t telem_byte = 0;
   u8_t update_3 = 0;
   u8_t update_4 = 0;  // ~64 Hz
   u8_t update_9 = 0;  // ~2 Hz
@@ -55,19 +55,17 @@ int main(void)
       u8_t data = kSerial->Read(&err);
       if (err) {
 	DBG_MD(DSHOT, ("DSHOT Err: %d\n", err));
-	telem_byte = 0;
+	telemetry.ResetBuffer();
 	continue;
       }
-      telemetry.SetBuffer(telem_byte++, data);
-      if (telem_byte >= kKissTelementryLen) {
-	if (telemetry.Parse(telem_byte - kKissTelementryLen)) {
-	  telem_byte = 0;
-	  // telemetry.Print();
-	  sport.SetSensor(sport_volt_idx, telemetry.volts);
-	  sport.SetSensor(sport_current_idx, telemetry.amps / 10);
-	}
+      telemetry.AddByte(data);
+      if (telemetry.Parse() == KissTelemetry::kSuccess) {
+	// telemetry.Print();
+	sport.SetSensor(sport_volt_idx, telemetry.volts);
+	sport.SetSensor(sport_current_idx, telemetry.amps / 10);
       }
     }
+
     const unsigned long now = FastTimeMs();
     const u8_t now_3 = now >> 3;
     if (now_3 == update_3) continue;

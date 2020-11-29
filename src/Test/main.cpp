@@ -25,13 +25,11 @@
 #include "WS2812.h"
 #include "DShotASM.h"
 
-#define LED_PIN (6)
-#define DSHOT_PIN (5)
+#define LED_PIN (2)
+#define DSHOT_PIN (4)
 
 const u8_t nLeds = 200;
 led::RGBW leds[nLeds];
-
-#define DSHOT_ENABLE 1
 
 int main(void)
 {
@@ -40,6 +38,7 @@ int main(void)
   SetupRtcClock(/*use_internal_32K=*/true);
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
+  DBG_LEVEL_HI(DSHOT);
   Fill(leds, nLeds, led::wclr::black);
   Fill(leds +   0, 49, led::wclr::blue);
   Fill(leds +  49, 51, led::wclr::red);
@@ -49,16 +48,13 @@ int main(void)
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
 
-  BitBang bitbang(PORT_C, 0x60);  // pins C5 DShot, C6 LED.
-#if DSHOT_ENABLE
-  DBG_LEVEL_HI(DSHOT);
+  BitBang bitbang(PORT_C, (1 << LED_PIN) | (1 << DSHOT_PIN));
+
   DShotISR dshot(&Serial::usart1, &bitbang);
-#endif
+
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
-  // dshot_pdiv1(&bitbang);
 
-#if DSHOT_ENABLE
   dshot.SetChannel(DSHOT_PIN, 0, false);
   dshot.Start();
   int nDshotSent = 0;
@@ -67,7 +63,6 @@ int main(void)
   i8_t thr_add = 1;
   u16_t thr = min_thr;
   int reset_cnt = 0;
-#endif
   
   u8_t update_3 = 0;
   u8_t update_4 = 0;  // ~64 updates/sec
@@ -75,7 +70,7 @@ int main(void)
   u8_t update_8 = 0;  // ~4 updates/sec
   u8_t bright = 0;
   while (1) {
-#if DSHOT_ENABLE
+
     bool new_telemetry;
     if (dshot.Run(&new_telemetry)) {
       nDshotSent++;
@@ -91,10 +86,9 @@ int main(void)
     if (new_telemetry) {
       dshot.GetTelemetry()->Print();
     }
-#endif	     
-    const unsigned long now = FastTimeMs();
 
-#if DSHOT_ENABLE
+    const i16_t now = FastMs();
+
     // 128 updates/sec
     const u8_t now_3 = now >> 3;
     if (now_3 == update_3) continue;
@@ -105,23 +99,24 @@ int main(void)
     else if (thr < min_thr) { thr = min_thr; thr_add = -thr_add; }
     bool request_telemetry = false;
     if (now_3 == 0xFF) {
-      DBG_MD(APP, ("\n Requesting Telemetry[%lu-%u]: %d\n",
+      DBG_MD(APP, ("\n Requesting Telemetry[%d-%u]: %d\n",
 		   now, nDshotSent, thr));
       request_telemetry = true;
     }
     dshot.SetChannel(DSHOT_PIN, thr, request_telemetry);
-#endif
     
     // 64 updates/sec
     const u8_t now_4 = now >> 4;
     if (now_4 == update_4) continue;
     update_4 = now_4;
-    bitbang.SendWS2812(PinId(PIN_C6), leds, sizeof(leds), bright);
+    // Send LED pixels out via bitbang.
+    bitbang.SendWS2812(LED_PIN, leds, sizeof(leds), 0x10);
 
     // 16 updates/sec
     u8_t now_6 = now >> 6;
     if (now_6 == update_6) continue;
     update_6 = now_6;
+    // Rotate LED pixels
     led::RGBW hold = leds[0];
     memmove(leds, leds + 1, sizeof(leds) - sizeof(leds[0]));
     leds[nLeds - 1] = hold;

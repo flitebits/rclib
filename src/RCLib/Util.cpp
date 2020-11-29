@@ -81,7 +81,7 @@ i8_t GetMainClockErr(bool at5V)
   return 0;
 }
 
-void memset(void* ptr, int len, u8_t val){
+void memset(void* ptr, u8_t val, int len){
   u8_t *p = (u8_t *)ptr;
   while (len--) {
     *(p++) = val;
