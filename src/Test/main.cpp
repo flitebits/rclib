@@ -38,7 +38,7 @@ int main(void)
   SetupRtcClock(/*use_internal_32K=*/true);
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
-  DBG_LEVEL_HI(DSHOT);
+  DBG_LEVEL_MD(DSHOT);
   Fill(leds, nLeds, led::wclr::black);
   Fill(leds +   0, 49, led::wclr::blue);
   Fill(leds +  49, 51, led::wclr::red);
@@ -68,9 +68,7 @@ int main(void)
   u8_t update_4 = 0;  // ~64 updates/sec
   u8_t update_6 = 0;  // ~16 updates/sec
   u8_t update_8 = 0;  // ~4 updates/sec
-  u8_t bright = 0;
   while (1) {
-
     bool new_telemetry;
     if (dshot.Run(&new_telemetry)) {
       nDshotSent++;
@@ -97,18 +95,12 @@ int main(void)
     thr += thr_add;
     if (thr > max_thr) { thr = max_thr; thr_add = -thr_add; }
     else if (thr < min_thr) { thr = min_thr; thr_add = -thr_add; }
-    bool request_telemetry = false;
-    if (now_3 == 0xFF) {
-      DBG_MD(APP, ("\n Requesting Telemetry[%d-%u]: %d\n",
-		   now, nDshotSent, thr));
-      request_telemetry = true;
-    }
-    dshot.SetChannel(DSHOT_PIN, thr, request_telemetry);
     
     // 64 updates/sec
     const u8_t now_4 = now >> 4;
     if (now_4 == update_4) continue;
     update_4 = now_4;
+    dshot.SetChannel(DSHOT_PIN, thr, true);
     // Send LED pixels out via bitbang.
     bitbang.SendWS2812(LED_PIN, leds, sizeof(leds), 0x10);
 

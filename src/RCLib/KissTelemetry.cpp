@@ -38,16 +38,13 @@ KissTelemetry::ParseResult KissTelemetry::Parse() {
   if (idx < 10) return kNotReady;
   u8_t start_byte = idx - 10;
   u8_t rec_crc = 0;
-  DBG_HI(DSHOT,("Start: %d Bytes: ", start_byte));
   for (int i = 0; i < 9; ++i) {
     u8_t b = buffer[(start_byte + i) & 0xF];
-    DBG_HI(DSHOT,("%02x ", b));
     rec_crc ^= b;
     for (int j = 0; j < 8; ++j) {
       rec_crc = ((rec_crc & 0x80) ? 0x07 ^ (rec_crc << 1) : (rec_crc << 1));
     }
   }
-  DBG_HI(DSHOT,("\n"));
 
   u8_t buf_crc = buffer[(start_byte + 9) & 0xF];
   if (rec_crc != buf_crc) {
@@ -64,6 +61,8 @@ KissTelemetry::ParseResult KissTelemetry::Parse() {
   erpm  = ((buffer[(start_byte + 7) & 0xF] << 8) |
 	   buffer[(start_byte + 8) & 0xF]);
   crc = buffer[(start_byte + 9) & 0xF];
+  // Reset Idx since we wouldn't expect to parse correctly for 10 bytes.
+  idx = 0;
   return kSuccess;
 }
 

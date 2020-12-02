@@ -46,7 +46,6 @@ int main(void)
   u8_t update_3 = 0;
   u8_t update_4 = 0;  // ~64 Hz
   u8_t update_9 = 0;  // ~2 Hz
-  /* Replace with your application code */
   while (1)  {
     sport.Run();
     
@@ -79,7 +78,6 @@ int main(void)
     if (now_9 == update_9) continue;  // ~2 Hz
     update_9 = now_9;
     PORTF.OUTTGL = 1 << 2;  // Toggle PF2
-    // telemetry.Print();
-    // DBG_HI(APP, ("Bytes: %d\n", telem_byte));
+    telemetry.Print();
   }
 }
