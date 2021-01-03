@@ -48,20 +48,19 @@ int main(void)
   u8_t update_9 = 0;  // ~2 Hz
   while (1)  {
     sport.Run();
-    
     while (kSerial->Avail()) {
       u8_t err;
       u8_t data = kSerial->Read(&err);
       if (err) {
-	DBG_MD(DSHOT, ("DSHOT Err: %d\n", err));
-	telemetry.ResetBuffer();
-	continue;
+        DBG_MD(DSHOT, ("DSHOT Err: %d\n", err));
+        telemetry.ResetBuffer();
+        continue;
       }
       telemetry.AddByte(data);
       if (telemetry.Parse() == KissTelemetry::kSuccess) {
-	// telemetry.Print();
-	sport.SetSensor(sport_volt_idx, telemetry.volts);
-	sport.SetSensor(sport_current_idx, telemetry.amps / 10);
+        telemetry.Print();
+        sport.SetSensor(sport_volt_idx, telemetry.volts);
+        sport.SetSensor(sport_current_idx, telemetry.amps / 10);
       }
     }
 
@@ -78,6 +77,6 @@ int main(void)
     if (now_9 == update_9) continue;  // ~2 Hz
     update_9 = now_9;
     PORTF.OUTTGL = 1 << 2;  // Toggle PF2
-    telemetry.Print();
+    // telemetry.Print();
   }
 }

@@ -40,3 +40,6 @@ Release/
 *~
 #*#
 
+#KiCad cache
+fp-info-cache
+.DS_Store

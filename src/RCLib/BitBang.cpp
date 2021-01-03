@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <util/atomic.h>
 
+#include "leds/FPMath.h"
+
 // If you use ASM then all the timeing critical stuff is done with asm
 // and thus build settings can't affect results. I have rough
 // equivilents in straight C/C++ wich you can use if you want to
@@ -73,8 +75,8 @@ namespace {
   "nop \n\t" \
   "nop \n\t" \
   "nop \n\t" \
-  /* If low bit of led is set skip clearing led pin 300uS */ \
-  "sbrs %[led], 0 \n\t" \
+  /* If high bit of led is set skip clearing led pin 300uS */ \
+  "sbrs %[led], 7 \n\t" \
   "std Z+6, %[led_msk] \n\t" \
   "nop \n\t" \
   "nop \n\t" \
@@ -92,7 +94,7 @@ namespace {
   /* If idx == 9 then switch to led2 byte, else right shift led 1 bit */ \
   "cpi %[idx],lo8(9) \n\t" \
   "breq .L%=_next_byte \n\t" \
-  "lsr %[led] \n\t" \
+  "lsl %[led] \n\t" \
   "rjmp .L%=_clear_all \n\t" \
   ".L%=_next_byte: \n\t" \
   "mov %[led], %[led2] \n\t" \
@@ -114,7 +116,7 @@ namespace {
                           [led]    "r"  (led1),                         \
                           [led2]   "r"  (led2));
 
-#define WS2812Full_ASM(port, ptr, led_mask, idx, b1)			\
+#define WS2812Full_ASM(port, led_mask, idx, b1)			\
   __asm__ __volatile__ (                                                \
 			".L%=_top: \n\t"				\
 			/* Set all bits high (OUTSET) */		\
@@ -123,18 +125,18 @@ namespace {
 			"nop \n\t"					\
 			"nop \n\t"					\
 			"nop \n\t"					\
-			/* If low bit of led is set skip clearing */	\
+			/* If high bit of led is set skip clearing */	\
 			/* led pin 300uS */				\
-			"sbrs %[b1], 0 \n\t"				\
+			"sbrs %[b1], 7 \n\t"				\
 			"std Z+6, %[led_mask] \n\t"			\
-			/* Shift a bit out of byte */			\
-			"lsr %[b1] \n\t"				\
+			/* Shift bits up to get next bit */		\
+			"lsl %[b1] \n\t"				\
 			"nop \n\t"					\
 			"nop \n\t"					\
 			"nop \n\t"					\
 			"nop \n\t"					\
 			"nop \n\t"					\
-			/* Clear led bit unconditionally @900us */ \
+			/* Clear led bit unconditionally @900us */ 	\
 			"std Z+6, %[led_mask] \n\t"			\
                         /* Subtract one from idx and break out if zero */ \
 			"subi %[idx],lo8(1) \n\t"			\
@@ -151,7 +153,6 @@ namespace {
 			"std Z+6, %[led_mask] \n\t"			\
 			: /* no outputs */				\
                         : "z"  (port),					\
-                          [ptr] "x"  (ptr),				\
 			  [b1] "r" (b1),				\
                           [led_mask] "r"  (led_mask),			\
 			  [idx]      "a" (idx));
@@ -260,7 +261,7 @@ void BitBang::SendWS2812Full(u8_t pin, void* ptr, u16_t len) {
 #if USE_ASM
     u8_t idx = 8;
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
-      WS2812Full_ASM(port, p, led_mask, idx, b1);
+      WS2812Full_ASM(port, led_mask, idx, b1);
     }
     b1 = *(p++);
 #else
@@ -298,12 +299,12 @@ void BitBang::SendWS2812Scale(u8_t pin, void* ptr, u16_t len, u8_t scale) {
   const u8_t led_mask = 1 << pin;
   const u8_t scale_1 = scale + 1;
   u8_t *p = (u8_t *)ptr;
-  u8_t b1 = (*(p++) * scale_1) >> 8;
+  u8_t b1 = led::scale8(*(p++), scale_1);
   while(len) {
     if (dshot_mask_) {
       u8_t l1 = b1;
-      u8_t l2 = (*(p++) * scale_1) >> 8;
-      b1 = (*(p++) * scale_1) >> 8;
+      u8_t l2 = led::scale8(*(p++), scale_1);
+      b1 = led::scale8(*(p++), scale_1);
       // Sends DShot data along with 2 bytes of led data.
       DShot600WS2812(l1, l2, led_mask);
       if (len <= 2) return;
@@ -313,9 +314,9 @@ void BitBang::SendWS2812Scale(u8_t pin, void* ptr, u16_t len, u8_t scale) {
 #if USE_ASM
     u8_t idx = 8;
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
-      WS2812Full_ASM(port, p, led_mask, idx, b1);
+      WS2812Full_ASM(port, led_mask, idx, b1);
     }
-    b1 = (*(p++) * scale_1) >> 8;
+    b1 = led::scale8(*(p++), scale_1);
 #else
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
       for (u8_t i = 0; i < 8; ++i) {
@@ -330,7 +331,7 @@ void BitBang::SendWS2812Scale(u8_t pin, void* ptr, u16_t len, u8_t scale) {
 	nop();
 	port->OUTCLR = led_mask;
 	if (i == 7) {
-	  b1 = (*(p++) * scale_1) >> 8;
+	  b1 = led::scale8(*(p++), scale_1);
 	} else {
 	  b1 = b1 >> 1;
 	}

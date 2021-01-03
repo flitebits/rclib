@@ -58,7 +58,7 @@ u32_t FastTimeMs() {
   if ((flgs & RTC_OVF_bm) && (cnt == 0)) {
     ++sec;
   }
-  return (sec << 10) + ((cnt + (1<<4)) >> 5);
+  return (u32_t(sec) << 10) | (cnt >> 5);
 }
 
 u32_t TimeMs() {
