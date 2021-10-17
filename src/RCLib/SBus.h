@@ -27,7 +27,7 @@ public:
 
   // Convert RC channel value to three position switch values (0-2)
   // threshold is where values change.
-  static int ThreePosSwitch(short val, short threshold = 667);
+  static u8_t ThreePosSwitch(i16_t val, i16_t threshold = 667);
 
   int GetBytesRead() { return bytes_read_; }
   int GetDataFrames() { return frames_; }

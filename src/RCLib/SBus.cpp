@@ -36,7 +36,7 @@ void SBus::Dump() {
   DBG_LO(SBUS, ("%c\n", FailSafe() ? 'F' : '-'));
 }
 
-int SBus::ThreePosSwitch(short val, short threshold) {
+u8_t SBus::ThreePosSwitch(i16_t val, i16_t threshold) {
   if (val <= threshold) return 0;
   if (val >= (sbus_max_val - threshold)) return 2;
   return 1;

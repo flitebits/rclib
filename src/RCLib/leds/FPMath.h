@@ -11,7 +11,11 @@
 
 #include "../IntTypes.h"
 namespace led {
-  
+
+// Faster version of (v0 * v1) >> 8, can be used to 'scale' one 8bit
+// value by another 8bit value, note that this has some stability issues
+// as 255 * 255 -> 254 which probably should be 255.
+// Takes 3-4 cycles
 inline u8_t scale8(u8_t v0, u8_t v1) {
   u8_t out;
   __asm__ __volatile__ (		     \
@@ -24,6 +28,25 @@ inline u8_t scale8(u8_t v0, u8_t v1) {
   return out;
 }
 
+// Better version of scale8, can be used to 'scale' one 8bit value by
+// another 8bit value.
+// It's result is equal to: (v0 * (u16(v1) + 1)) >> 8
+// This keeps zero * N -> zero, and also keeps 255 * 255 -> 255.
+// Takes 5-6 cycles.
+inline u8_t bscale8(u8_t v0, u8_t v1) {
+  u8_t out;
+  __asm__ __volatile__ (		     \
+			"mul %[v0], %[v1]\n\t" \
+			"mov %[out], r1\n\t"   \
+			"clr __zero_reg__  \n\t" \
+			"add r0, %[v1]\n\t" \
+			"adc %[out], __zero_reg__\n\t" \
+			: [out] "=r" (out)
+			: [v0] "r" (v0),
+			  [v1] "r" (v1));
+  return out;
+}
+  
 inline u16_t scale16(u16_t v0, u16_t v1) {
   u16_t out;
   __asm__ __volatile__ (		       \

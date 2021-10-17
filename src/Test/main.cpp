@@ -66,7 +66,8 @@ int main(void)
   i8_t thr_add = 1;
   u16_t thr = min_thr;
   int reset_cnt = 0;
-
+  bool request_telem = false;
+  
   u8_t update_3 = 0;
   u8_t update_4 = 0;  // ~64 updates/sec
   u8_t update_6 = 0;  // ~16 updates/sec
@@ -82,11 +83,12 @@ int main(void)
       }
       if (reset_cnt == 1000) {
         reset_cnt++;
-        dshot.SetChannel(DSHOT_PIN, thr, false);
+        dshot.SetChannel(DSHOT_PIN, thr, true);
       }
     }
     if (new_telemetry) {
       dshot.GetTelemetry()->Print();
+	  request_telem = true;
     }
 
     const i16_t now = FastMs();
@@ -104,10 +106,12 @@ int main(void)
     const u8_t now_4 = now >> 4;
     if (now_4 == update_4) continue;
     update_4 = now_4;
-    dshot.SetChannel(DSHOT_PIN, thr, true);
-    pacifica.Run(leds, nLeds);
+    dshot.SetChannel(DSHOT_PIN, thr, request_telem);
+    DBG_MD(APP, ("Thr: 0x%03X ReqT: %c\n", thr, request_telem ? 'T' : 'F'));
+	request_telem = false;
+    // pacifica.Run(leds, nLeds);
     // Send LED pixels out via bitbang.
-    bitbang.SendWS2812(LED_PIN, leds, sizeof(leds), 0xFF);
+    // bitbang.SendWS2812(LED_PIN, leds, sizeof(leds), 0xFF);
     
 
     // 16 updates/sec

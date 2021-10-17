@@ -31,6 +31,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "SkyBoy", "SkyBoy\SkyBoy.cpp
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "WingTelem", "WingTelem\WingTelem.cppproj", "{9F03E2DC-8255-474E-A9BA-F16996361FA1}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "dipper", "dipper\dipper.cppproj", "{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -81,6 +83,11 @@ Global
 		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Debug|AVR.Build.0 = Debug|AVR
 		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Release|AVR.ActiveCfg = Release|AVR
 		{9F03E2DC-8255-474E-A9BA-F16996361FA1}.Release|AVR.Build.0 = Release|AVR
+		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Debug|AVR.ActiveCfg = Debug|AVR
+		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Debug|AVR.Build.0 = Debug|AVR
+		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Debug|AVR.Deploy.0 = Debug|AVR
+		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Release|AVR.ActiveCfg = Release|AVR
+		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

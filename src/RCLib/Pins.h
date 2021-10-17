@@ -111,7 +111,13 @@ public:
     else       port->OUTCLR = 1 << pidx;
     port->DIRSET = 1 << pidx;
   }
-
+  void toggle() { port_ptr()->OUTTGL = (1 << pin()); }
+  void set(bool state) {
+    if (state) port_ptr()->OUTSET = (1 << pin());
+    else       port_ptr()->OUTCLR = (1 << pin());
+  }
+  bool get() { return port_ptr()->OUT & (1 << pin()); }
+  
   PinGroupId port() { return PinGroupId(val_ >> 4); }
   u8_t pin() { return val_ & 0xF; }
   PORT_t* port_ptr() { return GetPortStruct(port()); }

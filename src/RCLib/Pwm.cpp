@@ -68,6 +68,18 @@ void Pwm::Disable(u8_t idx){
   port_ptr_->DIRCLR = (1 << idx);
 }
 
+u8_t Pwm::Get(u8_t idx){
+  switch (idx) {
+  case 0: return TCA0.SPLIT.LCMP0;
+  case 1: return TCA0.SPLIT.LCMP1;
+  case 2: return TCA0.SPLIT.LCMP2;
+  case 3: return TCA0.SPLIT.HCMP0;
+  case 4: return TCA0.SPLIT.HCMP1;
+  case 5: return TCA0.SPLIT.HCMP2;
+  default: return 0;
+  }
+}
+
 void Pwm::Set(u8_t idx, u8_t val){
   switch (idx) {
   case 0: TCA0.SPLIT.LCMP0 = val; break;
@@ -76,5 +88,21 @@ void Pwm::Set(u8_t idx, u8_t val){
   case 3: TCA0.SPLIT.HCMP0 = val; break;
   case 4: TCA0.SPLIT.HCMP1 = val; break;
   case 5: TCA0.SPLIT.HCMP2 = val; break;
+  default: break;
+  }
+}
+
+void Pwm::Set(u8_t start_idx, u8_t nval, u8_t* val) {
+  if (start_idx > 5) return;
+  if (start_idx < 0) {
+    nval += start_idx;  // Negative so drops those values
+    val += -start_idx;
+    start_idx = 0;
+  }
+  if (start_idx + nval > 6) {
+    nval = 6 - start_idx;
+  }
+  while (nval--) {
+    Set(start_idx++, *(val++));
   }
 }
