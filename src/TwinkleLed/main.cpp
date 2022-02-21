@@ -18,12 +18,18 @@
 // Subsystem includes
 #include "Adc.h"
 #include "Pwm.h"
-#include "Spi.h"
 #include "Serial.h"
+#include "WS2812.h"
 
 // LED helper functions.
 #include "leds/Rgb.h"
 #include "leds/Clr.h"
+
+const bool HEARTBEAT = false;  // set true to get heartbeat on board led.
+
+
+#define LED_PIN (PIN_F0)
+const int NUM_LEDS = 10;
 
 u8_t log_map[9] = {1, 2, 4, 8, 16, 32, 64, 128, 255};
 
@@ -112,27 +118,28 @@ struct Pix {
     Clr curr;
 };
 
-const int NUM_LEDS = 10;
-led::RGB leds[NUM_LEDS + 1]; // Define the array of leds
-Pix pixs[NUM_LEDS];
-
-void update_leds() {
-  for (int i = 0; i < NUM_LEDS; ++i) {
+void update_leds(Pix* pixs, led::RGB* leds, int len) {
+  for (int i = 0; i < len; ++i) {
     pixs[i].Inc();
     leds[i] = pixs[i].ToRgb();
   }
 }
 
-const int NUM_STRAND = 6;
+const int NUM_STRAND = 5;
 Pix strand[NUM_STRAND];
+u8_t map[NUM_STRAND] = {0, 1, 2, 3, 5};
 void update_strands(Pwm* pwm) {
   for (int i = 0; i < NUM_STRAND; ++i) {
     strand[i].Inc();
-    pwm->Set(i, strand[i].ToPwm());
+    pwm->Set(map[i], strand[i].ToPwm());
   }  
+  pwm->Set(4, 0x7F);
 }
 
 int main(void) {
+  led::RGB leds[NUM_LEDS + 1]; // Define the array of leds
+  Pix pixs[NUM_LEDS];
+
   // Do very basic chip config, in particular setup base clocks.
   Boot(/*target_pdiv=*/2, /*use_internal_32Kclk=*/true);
   SetupRtcClock(/*use_internal_32K=*/true);
@@ -142,41 +149,40 @@ int main(void) {
   adc.ConfigurePin(6);    // Read a "mostly random" seed from Analog pin 6 (PD6)
   randomSeed(adc.Read(6));
   
-  Spi::spi.SetupSK6812(Spi::PINS_PA47);
+  // Configure LED pin as output (low, not inverted, not pullup)
+  PinId(LED_PIN).SetOutput(0);
+  // Blnky Led on board
+  PinId blink_pin(PIN_F2);
+  blink_pin.SetOutput(1);  // High is led off.
+  
   // Pwm module use the 3 TCA timers as split 8bit PWM control providing
   // up to 6 channels of PWM.
   Pwm pwm(PORT_D, 1000);  // Select what port to use and freq of PWM
   for (int i = 0; i < 6; ++i) {
     pwm.Enable(i);  // Enable PWM on pins D0-D5
+    pwm.Set(i, 0);
   }
-
-  // Configuer blinky LED on pin PF2 
-  PORTF.OUT = 1 << 2;  // Set PF2 high, all others low
-  PORTF.PIN2CTRL = 0;  // Not inverted, not pullup enabled, no interrupts.
-  PORTF.DIR = 1 << 2;  // Pin PF2 as output pin.
   
   // Enable interrupts (end of init, real program begin).
   sei();
 
-  bool heartbeat_enable = false;  // set true to get heartbeat on board led.
   u8_t update_4 = 255;  // ~1/64 sec  (~16ms each)
   u8_t update_8 = 255;  // ~1/4 sec  (~250ms each )
   while (true) {
     u32_t now = FastTimeMs();
     u8_t now_4 = now >> 4;
-    if (now_4 != update_4) {  // ~60fps
-      update_4 = now_4;
-      update_strands(&pwm);
-      update_leds();
-      Spi::spi.UpdateLeds(leds, NUM_LEDS);
+    if (now_4 == update_4) continue;
+    update_4 = now_4;  // ~60fps
+    update_strands(&pwm);
+    update_leds(pixs, leds, NUM_LEDS);
+    SendWS2812(PinId(LED_PIN), leds, 3 * NUM_LEDS, 0xFF);
+
+    u8_t now_8 = now >> 8;
+    if (now_8 == update_8) continue;
+    update_8 = now_8;  // ~4fps
+    if (HEARTBEAT) {
+      blink_pin.toggle();
     }
-    if (heartbeat_enable) {
-      u8_t now_8 = now >> 8;
-      if (now_8 != update_8) {  // ~4fps
-        update_8 = now_8;
-        PORTF.OUTTGL = 1 << 2;  // Toggle PF2
-      }
-    }         
   }
 }
 
