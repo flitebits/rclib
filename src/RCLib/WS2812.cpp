@@ -107,7 +107,7 @@ namespace {
         else SEND_0(port, mask, 0);
         if (b & 0x02) SEND_1(port, mask, 1);
         else SEND_0(port, mask, 1);
-	len--;
+	    len--;
         if (b & 0x01) SEND_1(port, mask, 6);
         else SEND_0(port, mask, 6);
       }

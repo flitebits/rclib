@@ -32,8 +32,8 @@ void Fill(RGBW* pixs, int num_pix, const RGBW& val);
 // Sets each color field to the max of the two colors.
 void Max(RGB* pix, const RGB& other);
 void Max(RGBW* pix, const RGBW& other);
-// Lookup gradient value from a 4 entry gradient.
-// zero is first element 255 is last element.
+// Lookup gradient value from a 5 or 9 entry gradient.
+// zero is just first element 255 is just last element.
 RGB Lookup5(const RGB* gradient, u8_t offset);
 RGB Lookup9(const RGB* gradient, u8_t offset);
 RGBW Lookup5(const RGBW* gradient, u8_t offset);

@@ -27,7 +27,8 @@ public:
   // Set multiple PWM pin's duty cycles.
   // 0 is off all the time 255 is on all the time.
   void Set(u8_t start_idx, u8_t n_val, u8_t* val);
-
+  u8_t NumPwm(){ return 6; }
+  
   PORT_t* port_ptr() { return port_ptr_; }
 
 private:

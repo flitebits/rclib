@@ -26,7 +26,7 @@ u32_t FastTimeMs();
 // Returns Seconds since boot (unsigned 16 bit int so wraps ~18hrs).
 // Note that useing FastSecs and FastMs/FastFrac is frought with
 // perile since at some point the fractional seconds will wrap and
-// seconds will not have wrapped. Just use FastMsLong if you need this.
+// seconds will not have wrapped. Just use FastTimeMs if you need this.
 u16_t FastSecs();
 
 // Returns 1024ths of a second, only counts to one second (then

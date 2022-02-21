@@ -83,6 +83,7 @@ namespace dbg {
 #define DBG_LEVEL_HI(topic) do { } while(false)
 #endif  // NDEBUG
           
+#define DBG_OFF(topic, args) do { } while(false)
 #define DBG_LO(topic, args) DBG_LO_IF(topic, true, args)
 #define DBG_MD(topic, args) DBG_MD_IF(topic, true, args)
 #define DBG_HI(topic, args) DBG_HI_IF(topic, true, args)

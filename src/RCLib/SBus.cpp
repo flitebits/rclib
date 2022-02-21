@@ -26,6 +26,7 @@ SBus::SBus(Serial* serial, bool invert) :
   serial_->Setup(100000, 8, Serial::PARITY_EVEN, 2, invert,
 		 /*use_alt_pins=*/false, Serial::MODE_RX);
   serial_->SetBuffered(true);
+  DBG_LO(SBUS, ("SBus: Init\n"));
 }
 
 void SBus::Dump() {
@@ -49,12 +50,12 @@ int SBus::GetBits(int start_byte, int start_bit) {
   const u8_t b1 = data_[(start_byte + 1) & 0x1F];
   switch (start_bit & 0x07) {
     default:
-    case 0: return (b0 | (int(b1 & ((1 << 3) - 1)) << 8));
-    case 1: return (b0 | (int(b1 & ((1 << 4) - 1)) << 8)) >> 1;
-    case 2: return (b0 | (int(b1 & ((1 << 5) - 1)) << 8)) >> 2;
-    case 3: return (b0 | (int(b1 & ((1 << 6) - 1)) << 8)) >> 3;
-    case 4: return (b0 | (int(b1 & ((1 << 7) - 1)) << 8)) >> 4;
-    case 5: return (b0 | (u16_t(b1)  << 8)) >> 5;
+    case 0: return ( b0       | (u16_t(b1 & ((1 << 3) - 1)) << 8));
+    case 1: return ((b0 >> 1) | (u16_t(b1 & ((1 << 4) - 1)) << 7));
+    case 2: return ((b0 >> 2) | (u16_t(b1 & ((1 << 5) - 1)) << 6));
+    case 3: return ((b0 >> 3) | (u16_t(b1 & ((1 << 6) - 1)) << 5));
+    case 4: return ((b0 >> 4) | (u16_t(b1 & ((1 << 7) - 1)) << 4));
+    case 5: return ((b0 >> 5) | (u16_t(b1)                  << 3));
     case 6: {
       const u8_t b2 = data_[(start_byte + 2) & 0x1F];
       return (b0 >> 6) | (b1 << 2) | ((b2 & 0x01) << 10);
@@ -72,7 +73,7 @@ bool SBus::Run() {
     serial_->Read(&info);
     bytes_read_++;
     if (info.err) {  // error reading serial data, so don't trust anything.
-      DBG_MD(SBUS, ("SBus serial read Error: %d", info.err));
+      DBG_MD(SBUS, ("SBus serial read Error: %d\n", info.err));
       memset(data_, 0xFF, sizeof(data_));
 	  sbus_err++;
       continue;
