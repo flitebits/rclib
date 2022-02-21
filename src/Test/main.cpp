@@ -16,81 +16,106 @@
 #include "RtcTime.h"
 #include "Util.h"
 
-#include "DShotISR.h"
 #include "leds/Effects.h"
-#include "leds/Rgb.h"
-#include "leds/Pixel.h"
 #include "leds/FPMath.h"
+#include "leds/Hsv.h"
+#include "leds/Pixel.h"
+#include "leds/Rgb.h"
 #include "Pins.h"
+#include "Pwm.h"
 #include "Serial.h"
-#include "Spi.h"
 #include "WS2812.h"
 #include "DShotASM.h"
 
-#define LED_PIN (2)
-#define DSHOT_PIN (4)
+#define BLINK_PIN (PIN_F2)
+
+#if defined(__AVR_ATmega4808__)
+#define LED_PIN (PIN_F0)
+#endif
+
+#if defined(__AVR_ATmega4809__)
+#define LED_PIN (PIN_C2)
+#endif
+
+#define LED_RGB (0)
+#define LED_RGBW (1)
+
+#define LED_TYPE (LED_RGB)
 
 const u8_t nLeds = 200;
-led::RGB leds[nLeds];
+#if (LED_TYPE == LED_RGBW)
+using led::RGBW;
+RGBW leds[nLeds];
+#else
+using led::RGB;
+RGB leds[nLeds];
+#endif
+using led::Fill;
 
-int main(void)
-{
+u8_t phase_map[8] = {2, 4, 8, 16, 32, 64, 128, 255};
+void UpdatePwm(Pwm& pwm, u8_t state, u8_t phase) {
+  for (int i = 0; i < pwm.NumPwm(); ++i) {
+    pwm.Set(i, (state & (0x1 << i)) ? 64 : 0);
+  }
+}
+void UpdateLeds(u8_t phase, bool solid){
+  for (int c = 0; c < (nLeds / 8); c++) {
+    int idx = c * 8;
+    for (u8_t i = 0; i < 8; ++i) {
+      u8_t p = solid ? phase : (i + phase) % 0x7;
+#if (LED_TYPE == LED_RGBW)
+      leds[idx + i] = led::HsvToRgbw(led::HSV(c * 50, 255, phase_map[p]));
+#else
+      leds[idx + i] = led::HsvToRgb(led::HSV(c * 50, 255, phase_map[p]));
+#endif
+    }
+  }
+}
+
+void SetWhite(bool boost){
+  // Boost means everything on at full power.
+#if (LED_TYPE == LED_RGBW)
+  RGBW pix = boost ? RGBW(0xFF, 0xFF) : RGBW(0xFF);
+#else
+  RGB pix(0xFF);
+#endif  
+  Fill(leds, nLeds, pix);
+}
+
+int main(void) {
   // Do very basic chip config, in particular setup base clocks.
   Boot(/*target_pdiv=*/1, /*use_internal_32Kclk=*/true);
   SetupRtcClock(/*use_internal_32K=*/true);
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
-  DBG_LEVEL_MD(DSHOT);
-  Fill(leds, nLeds, led::clr::black);
-  Fill(leds +   0, 50, led::clr::blue);
-  Fill(leds +  50, 50, led::clr::red);
-  Fill(leds + 100, 50, led::clr::green);
-  Fill(leds + 150, 50, led::clr::yellow);
 
-  PinId blink_pin(PIN_F2);
+  PinId blink_pin(BLINK_PIN);
   blink_pin.SetOutput();
 
-  BitBang bitbang(PORT_C, (1 << LED_PIN) | (1 << DSHOT_PIN));
+  PinId led_pin(LED_PIN);
+  led_pin.SetOutput();
 
-  DShotISR dshot(&Serial::usart1, &bitbang);
-  led::Pacifica pacifica;
-  
+  // Pwm module use the 3 TCA timers as split 8bit PWM control providing
+  // up to 6 channels of PWM.
+  Pwm pwm(PORT_D, 1000);  // Select what port to use and freq of PWM
+  for (int i = 0; i < pwm.NumPwm(); ++i) {
+    pwm.Enable(i);  // Enable PWM on pins D0-D5
+    pwm.Set(i, 0);
+  }
+
+  u8_t phase = 0;
+  UpdateLeds(false, phase);
+
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
-  dshot.SetChannel(DSHOT_PIN, 0, false);
-  dshot.Start();
-  int nDshotSent = 0;
 
-  const u16_t min_thr = 75;
-  const u16_t max_thr = 255;
-  i8_t thr_add = 1;
-  u16_t thr = min_thr;
-  int reset_cnt = 0;
-  bool request_telem = false;
-  
   u8_t update_3 = 0;
   u8_t update_4 = 0;  // ~64 updates/sec
   u8_t update_6 = 0;  // ~16 updates/sec
   u8_t update_8 = 0;  // ~4 updates/sec
-  
-  while (1) {
-    bool new_telemetry;
-    if (dshot.Run(&new_telemetry)) {
-      nDshotSent++;
-      if (reset_cnt < 1000) {
-        reset_cnt++;
-        continue;
-      }
-      if (reset_cnt == 1000) {
-        reset_cnt++;
-        dshot.SetChannel(DSHOT_PIN, thr, true);
-      }
-    }
-    if (new_telemetry) {
-      dshot.GetTelemetry()->Print();
-	  request_telem = true;
-    }
 
+  u8_t pwm_state = 0;
+  while (1) {
     const i16_t now = FastMs();
 
     // 128 updates/sec
@@ -98,31 +123,43 @@ int main(void)
     if (now_3 == update_3) continue;
     update_3 = now_3;
 
-    thr += thr_add;
-    if (thr > max_thr) { thr = max_thr; thr_add = -thr_add; }
-    else if (thr < min_thr) { thr = min_thr; thr_add = -thr_add; }
-    
     // 64 updates/sec
     const u8_t now_4 = now >> 4;
     if (now_4 == update_4) continue;
     update_4 = now_4;
-    dshot.SetChannel(DSHOT_PIN, thr, request_telem);
-    DBG_MD(APP, ("Thr: 0x%03X ReqT: %c\n", thr, request_telem ? 'T' : 'F'));
-	request_telem = false;
-    // pacifica.Run(leds, nLeds);
-    // Send LED pixels out via bitbang.
-    // bitbang.SendWS2812(LED_PIN, leds, sizeof(leds), 0xFF);
     
-
     // 16 updates/sec
     u8_t now_6 = now >> 6;
     if (now_6 == update_6) continue;
     update_6 = now_6;
 
+    
     // 4 updates/sec
     u8_t now_8 = now >> 8;
     if (now_8 == update_8) continue;  // ~4fps
     update_8 = now_8;
-    PORTF.OUTTGL = 1 << 2;  // Toggle PF2
+    blink_pin.toggle();
+
+    ++phase;
+    SendWS2812(led_pin, leds, sizeof(leds), 0xFF);
+    UpdatePwm(pwm, ++pwm_state, phase);
+    
+    u8_t test_mode = (FastSecs() >> 1) & 0x3; // change mode every 2 sec
+    switch (test_mode) {
+    case 0: 
+      // Animated (test of signal integrity).
+      UpdateLeds(phase, false);
+      break;
+    case 1:
+      // all 8 colors at the same level (semi realistic color draw)
+      UpdateLeds(phase, true); 
+      break;
+    case 2:
+      SetWhite(false);  // Just White at 100%
+      break;
+    case 3:
+      SetWhite(true);   // Everything at 100% (max power draw).
+      break;
+    }
   }
 }
