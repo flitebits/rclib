@@ -33,6 +33,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "WingTelem", "WingTelem\Wing
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "dipper", "dipper\dipper.cppproj", "{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_A10", "FT_A10\FT_A10.cppproj", "{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -88,6 +90,10 @@ Global
 		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Debug|AVR.Deploy.0 = Debug|AVR
 		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Release|AVR.ActiveCfg = Release|AVR
 		{F7D8994C-377C-4DFC-ABD7-CF8BD2A08346}.Release|AVR.Build.0 = Release|AVR
+		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Debug|AVR.ActiveCfg = Debug|AVR
+		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Debug|AVR.Build.0 = Debug|AVR
+		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Release|AVR.ActiveCfg = Release|AVR
+		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
