@@ -1,9 +1,9 @@
 // Copyright 2021 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include <string.h>
@@ -63,13 +63,13 @@ using led::sin8;
 u8_t led_data[RGBW_CNT * 4 + RGB_CNT * 3];
 
 enum CmdCode {
-	      CMD_TYPE_MSK   = 0xF0,
-	      CMD_CLIENT     = 0x11,
-	      CMD_UPDATE     = 0x12,
-	      CMD_STATE      = 0x20,
-	      CMD_CTRL_STATE = CMD_STATE | 0x00,
-	      CMD_CLR_STATE  = CMD_STATE | 0x01,
-	      CMD_PLS_STATE  = CMD_STATE | 0x02,
+              CMD_TYPE_MSK   = 0xF0,
+              CMD_CLIENT     = 0x11,
+              CMD_UPDATE     = 0x12,
+              CMD_STATE      = 0x20,
+              CMD_CTRL_STATE = CMD_STATE | 0x00,
+              CMD_CLR_STATE  = CMD_STATE | 0x01,
+              CMD_PLS_STATE  = CMD_STATE | 0x02,
 };
 
 bool IsStateCmd(u8_t cmd) {
@@ -77,10 +77,10 @@ bool IsStateCmd(u8_t cmd) {
 }
 
 static RGB eng_grad[5] = { RGB(0x00, 0x00, 0x00),
-			   RGB(0x40, 0x00, 0x00),
-			   RGB(0x80, 0x20, 0x00),
-			   RGB(0xFF, 0x80, 0x00),
-			   RGB(0xFF, 0xFF, 0x80) };
+                           RGB(0x40, 0x00, 0x00),
+                           RGB(0x80, 0x20, 0x00),
+                           RGB(0xFF, 0x80, 0x00),
+                           RGB(0xFF, 0xFF, 0x80) };
 
 const u8_t log_map[9] = {0, 1, 2, 5, 11, 24, 52, 115, 255};
 
@@ -117,7 +117,7 @@ public:
     return ptr_[idx];
   }
   void Set(u8_t idx, const P& pix) {
-	At(idx) = pix;
+        At(idx) = pix;
   }
   void Fill(const P& pix) {
     led::Fill(ptr_, len_, pix);
@@ -138,13 +138,13 @@ public:
     if (forward == reverse_) {
       P p0 = ptr_[0];
       for (int i = 0; i < len_ - 1; ++i) {
-	ptr_[i] = ptr_[i + 1];
+        ptr_[i] = ptr_[i + 1];
       }
       ptr_[len_ - 1] = p0;
     } else {
       P pn = ptr_[len_ - 1];
       for (int i = len_ - 1; i > 0; --i) {
-	ptr_[i] = ptr_[i - 1];
+        ptr_[i] = ptr_[i - 1];
       }
       ptr_[0] = pn;
     }
@@ -175,7 +175,7 @@ public:
     // new speed are aligned.
     off_ += prev - curr;
   }
-  
+
   u8_t Get(u16_t now) {
     prev_time_ = now;
     return u8_t(((now * spd_) + (1 << 7)) >> 8) + off_;
@@ -188,7 +188,7 @@ public:
   }
 
 
-private:  
+private:
   u8_t off_;
   u16_t spd_;
   u16_t prev_time_;
@@ -208,7 +208,7 @@ class SyncableChannel {
 public:
   SyncableChannel(Serial* com) : com_(com), len_(0) { }
   Serial* Channel() { return com_; }
-  
+
   void WriteByte(u8_t b, bool flush = false) {
     packet_[len_++] = b;
     if (flush || len_ == 7) {
@@ -220,11 +220,11 @@ public:
       u8_t space = 7 - len_;
       if (space > sz) space = sz;
       for (int i = 0; i < space; ++i) {
-	packet_[len_++] = *(ptr++);
+        packet_[len_++] = *(ptr++);
       }
       sz -= space;
       if (len_ == 7) {
-	SendPacket();
+        SendPacket();
       }
     }
     if (flush) {
@@ -237,11 +237,11 @@ public:
       ReadInfo info;
       com_->Read(&info);
       if (info.err) {
-	len_ = 255;
-	continue;
+        len_ = 255;
+        continue;
       }
       if (info.data & 0x80) {
-	len_ = 0;
+        len_ = 0;
       }
       if (len_ == 255) continue;
       packet_[len_++] = info.data;
@@ -256,12 +256,12 @@ public:
     u8_t* ptr = &packet_[1];
     for (int i = 0; i < 7; ++i, ++ptr) {
       if (key_packet & (1 << i)) {
-	*ptr |= 0x80;
+        *ptr |= 0x80;
       }
     }
     return packet_ + 1;
   }
-  
+
 protected:
   void SendPacket() {
     if (len_ == 0) return;
@@ -290,11 +290,11 @@ protected:
 
 struct CtrlState {
   enum  ChangeBits {
-		    CHG_NONE = 0,
-		    CHG_MODE = 1 << 0,
-		    CHG_LVL  = 1 << 1,
-		    CHG_BRT  = 1 << 2,
-		    CHG_THR  = 1 << 1,
+                    CHG_NONE = 0,
+                    CHG_MODE = 1 << 0,
+                    CHG_LVL  = 1 << 1,
+                    CHG_BRT  = 1 << 2,
+                    CHG_THR  = 1 << 1,
   };
   u8_t mode;
   u8_t level;
@@ -308,15 +308,15 @@ struct CtrlState {
 
   u8_t Set(SBus* sbus) {
     u8_t mode = ((SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2) |
-		 SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_SUBMODE_CH)));
+                 SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_SUBMODE_CH)));
     CtrlState new_state(mode,
-			SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
-			sbus->GetChannel(LIGHT_BRIGHT_CH),
-			sbus->GetChannel(LIGHT_THROTTLE_CH)
-			);
+                        SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
+                        sbus->GetChannel(LIGHT_BRIGHT_CH),
+                        sbus->GetChannel(LIGHT_THROTTLE_CH)
+                        );
     return UpdateFromState(new_state);
   }
-    
+
   u8_t UpdateFromState(const CtrlState& other) {
     u8_t change = 0;
     change |= (other.mode != mode) ? CHG_MODE : 0;
@@ -339,7 +339,7 @@ struct CtrlState {
 
   bool Receive(u8_t* packet, u8_t max_bytes) {
     if (max_bytes < sizeof(*this)) return false;
-    
+
     memcpy(this, packet, sizeof(*this));
     DBG_HI(APP, ("Rcv: L:%d M:%02x B:%d T:%d\n", level, mode, brt, thr));
     return true;
@@ -349,28 +349,29 @@ struct CtrlState {
 struct SolidState {
   u8_t brt;
   u8_t spon_brt;
+  u8_t sub_mode;
   bool flash;
-  
+
   SolidState() : brt(0), spon_brt(0), flash(false) { }
 
   void UpdateState(bool is_host, u8_t brt, u8_t spon_brt) {
     this->brt = brt;
-    this->spon_brt = spon_brt;    
+    this->spon_brt = spon_brt;
   }
+
   void Update(u16_t now) {
     // Flash for the last 64ms of every second (1s = 1024 or 10bits
-    // 64ms = (1 << 6) so 
+    // 64ms = (1 << 6) so
     flash = ((u8_t(now >> 6) & 0x1F) == 0x1F);
   }
 };
 
 class ColorModeState {
 public:
-  void SetOpOffset(u8_t offset) {
-    offset_ = offset;
-  }
-
-  void UpdateState(bool is_host, i16_t thr, u8_t brt) {
+  ColorModeState()
+    : brt_(0), pulse_phase_(0), scale_(0), offset_(0) { }
+  void UpdateState(bool is_host, u8_t submode, i16_t thr, u8_t brt) {
+    submode_ = submode;
     brt_ = brt;
     // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
     // speed multiplier go from 0 -> 4x with throttle.
@@ -386,16 +387,36 @@ public:
   }
   void Update(u16_t now) {
     u8_t color_hue = color_saw_.Get(now);
+    if (submode_ != 2) {
+      // Limit hue to 0 -> 16 (red -> orange)
+      // so limit to 16 and subtract 4 (it's unsigned so the negative
+      // values wrap to high values which is fine).
+      if (color_hue >= 128) {
+        // If it's greater than 128 the reflect it back towards zero.
+        color_hue = 255 - color_hue;
+      }
+      // Now limited to 0->128, so divide by 8 so it's 0-16.
+      color_hue = (color_hue >> 3);
+    }
     color_ = HsvToRgb(HSV(color_hue, 0xFF, brt_));
     pulse_phase_ = 255 - pulse_saw_.Get(now);
   }
   const RGB& GetPix() { return color_; }
 
+  void SetOpOffset(u8_t offset) {
+    offset_ = offset;
+  }
+  // Scale is 2.6 FP number
+  void SetOpScale(u8_t scale) {
+    scale_ = scale;
+  }
   void operator() (u8_t frac, RGB* pix) const {
+    frac = (u16_t(frac) * scale_) >> 6;
     *pix = color_;
     Fade(pix, logify(sin8(offset_ + pulse_phase_ + frac)));
   }
   void operator() (u8_t frac, RGBW* pix) const {
+    frac = (u16_t(frac) * scale_) >> 6;
     *pix = color_;
     Fade(pix, logify(sin8(offset_ + pulse_phase_ + frac)));
   }
@@ -419,27 +440,29 @@ protected:
     u8_t pulse_off;
   };
   WireData wire_;
+  u8_t submode_;
   u8_t brt_;
   VariableSaw color_saw_;
   VariableSaw pulse_saw_;
   u8_t pulse_phase_;
+  u8_t scale_;
   u8_t offset_;
   RGB color_;
 };
 
 #define MAX_WAVE (3)
-// 0x00, 0x40, 0x80, 0xC0, 0xFF 
-static const u8_t spd_map[] = {0x15, 0x50, 0x70, 0xB0, 0xFF};
+// 0x00, 0x40, 0x80, 0xC0, 0xFF
+static const u8_t spd_map[] = {0x20, 0x50, 0x70, 0xA0, 0xFF};
 
 class PulseModeState {
 public:
   PulseModeState()
-    : prev_pulse_pos_(0) {
+    : prev_pulse_pos_(0), prev_glow_(0), glow_off_(0) {
     memset(temp_, 0, sizeof(temp_));
   }
   bool flash() { return flash_cnt_ > 0; };
   u8_t temp(u8_t idx) { return temp_[idx]; }
-  void UpdateState(bool is_host, i16_t thr) {
+  void UpdateState(bool is_host, u8_t submode, i16_t thr) {
     // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
     // speed multiplier go from 0 -> 4x with throttle.
     u8_t thr8 = thr >> 3;
@@ -447,37 +470,42 @@ public:
     u8_t spd_frac = thr8 & 0x3F;
     u8_t spd = spd_map[spd_idx] +
       ((u16_t(spd_map[spd_idx + 1] - spd_map[spd_idx]) * spd_frac) >> 6);
+    glow_off_ = 0;
     if (is_host) {
       glow_saw_.SetSpeed(spd);
-      pulse_saw_.SetSpeed(spd);
+      pulse_saw_.SetSpeed(spd >> 1);
     } else {
       glow_saw_.SetState(spd, wire_.glow_off);
-      pulse_saw_.SetState(spd, wire_.pulse_off);
-      for (u8_t i = 0; i < MAX_WAVE; ++i) {
-	wave_off_[i] = wire_.wave_off[i];
+      pulse_saw_.SetState(spd >> 1, wire_.pulse_off);
+      if (submode != 1) {
+        glow_off_ = 128;
       }
     }
   }
 
   void Update(u16_t now) {
-    if (flash_cnt_ > 0) --flash_cnt_;
+    if (flash_cnt_ > 0) {
+       --flash_cnt_;
+       int v = temp_[MAIN_CNT + BACK_CNT] + 0xC0;
+       temp_[MAIN_CNT + BACK_CNT] = v > 255 ? 255 : v;
+    }
     u8_t pulse_pos = pulse_saw_.Get(now);
-    u8_t glow = glow_saw_.Get(now);
+    u8_t glow = glow_saw_.Get(now) + glow_off_;
     if (glow < prev_glow_) { // Fired, create wave
       for (u8_t i = 0; i < MAX_WAVE; ++i) {
-	if (wave_off_[i] == 0) {
-	  u8_t pulse_val = pulse_pos;
-	  if (pulse_val == 0) {
-	    wave_off_[i] = 1;
-	  } else {
-	    wave_off_[i] = 0 - pulse_val;
-	  }
-	  break;
-	}
+        if (wave_off_[i] == 0) {
+          u8_t pulse_val = pulse_pos;
+          if (pulse_val == 0) {
+            wave_off_[i] = 1;
+          } else {
+            wave_off_[i] = 0 - pulse_val;
+          }
+          break;
+        }
       }
     }
     prev_glow_ = glow;
-    u8_t k[2] = { temp_[0], temp_[0] };
+    u8_t k[2] = { 0, u8_t(glow >> 1) };
     // Cool and blend everything a bit.
     for (u8_t i = 0; i < sizeof(temp_); ++i) {
       u8_t t = temp_[i];
@@ -487,7 +515,7 @@ public:
     }
     for (u8_t i = 0; i < 3; ++i) { // Add glow to the front
       if (temp_[i] < glow) temp_[i] = glow;
-      glow = (glow * 15) >> 4;
+      glow = (glow * 7) >> 3;
     }
 
     for (u8_t i = 0; i < MAX_WAVE; ++i) {
@@ -496,13 +524,13 @@ public:
       if (prev_pulse_pos_ < 0) prev_pulse_pos_ = 0;
       u8_t wave_pos = pulse_pos + wave_off_[i];
       if (wave_pos > (MAIN_CNT + BACK_CNT - 3)) {
-	wave_pos = (MAIN_CNT + BACK_CNT - 3);
-	wave_off_[i] = 0;
-	flash_cnt_ = 4;
+        wave_pos = (MAIN_CNT + BACK_CNT - 3);
+        wave_off_[i] = 0;
+        flash_cnt_ = 4;
       }
       if (wave_pos < 0) wave_pos = 0;
       for (int j = prev_wave_pos; j <= wave_pos; ++j) {
-	temp_[j] = 0xFF;
+        temp_[j] = 0xFF;
       }
       temp_[wave_pos + 1] = 0xC8;
       temp_[wave_pos + 2] = 0x80;
@@ -514,9 +542,6 @@ public:
     if (sizeof(WireData) > max_bytes) return;
     wire_.glow_off = glow_saw_.GetOff();
     wire_.pulse_off = pulse_saw_.GetOff();
-    for (u8_t i = 0; i < MAX_WAVE; ++i) {
-      wire_.wave_off[i] = wave_off_[i];
-    }
     ch->WriteBytes(reinterpret_cast<u8_t*>(&wire_), sizeof(wire_), true);
   }
   bool Receive(u8_t* packet, u8_t max_bytes) {
@@ -527,28 +552,29 @@ public:
   }
 
 protected:
-  
+
   struct WireData {
     u8_t glow_off;
     u8_t pulse_off;
-    u8_t wave_off[MAX_WAVE];
   };
   WireData wire_;
   VariableSaw glow_saw_;
   VariableSaw pulse_saw_;
   u8_t prev_pulse_pos_;
   u8_t prev_glow_;
+  u8_t glow_off_;
   u8_t wave_off_[MAX_WAVE];
-  u8_t temp_[MAIN_CNT + BACK_CNT];
+  u8_t temp_[MAIN_CNT + BACK_CNT + 1];
+  u8_t tail_temp_;
   u8_t flash_cnt_;
 };
 
 class Lights {
 public:
   enum {
-	UNSET = 0,
-	HOST = 1,
-	CLIENT = 2,
+        UNSET = 0,
+        HOST = 1,
+        CLIENT = 2,
   };
   Lights(PinId led_pin, Pwm* pwm) :
     host_(UNSET), led_pin_(led_pin), pwm_(pwm),
@@ -560,7 +586,7 @@ public:
   }
   u8_t Mode() { return mode_ >> 2; }
   u8_t Submode() { return mode_ & 0x03; }
-  
+
   bool IsHostSet() { return host_ !=  UNSET; }
   void SetIsHost(bool is_host) {
     host_ = is_host ? HOST : CLIENT;
@@ -574,17 +600,17 @@ public:
       ptr = f_osd_.SetSpan(ptr, MAIN_CNT, true);
       ptr = f_isd_.SetSpan(ptr, MAIN_CNT, false);
       ptr = tail_frt_.SetSpan(ptr, TAIL_FRT, false);
-      ptr = tail_isd_.SetSpan(ptr, TAIL_SDE, false);
+      ptr = tail_isd_.SetSpan(ptr, TAIL_SDE, true);
       ptr = tail_osd_.SetSpan(ptr, TAIL_SDE, false);
-      ptr = tail_bck_.SetSpan(ptr, TAIL_BCK, false);
+      ptr = tail_bck_.SetSpan(ptr, TAIL_BCK, true);
     } else {
       ptr = f_isd_.SetSpan(ptr, MAIN_CNT, true);
       ptr = f_osd_.SetSpan(ptr, MAIN_CNT, false);
       ptr = back_.SetSpan(ptr, BACK_CNT, false);
       ptr = tail_frt_.SetSpan(ptr, TAIL_FRT, false);
-      ptr = tail_osd_.SetSpan(ptr, TAIL_SDE, false);
+      ptr = tail_osd_.SetSpan(ptr, TAIL_SDE, true);
       ptr = tail_isd_.SetSpan(ptr, TAIL_SDE, false);
-      ptr = tail_bck_.SetSpan(ptr, TAIL_BCK, false);
+      ptr = tail_bck_.SetSpan(ptr, TAIL_BCK, true);
     }
   }
   void PushLeds() {
@@ -608,7 +634,7 @@ public:
     }
     return RGB(0, 0, 0);
   }
-  
+
   // Solid mode is body on, wing edges white, sponsons R/G.
   void UpdateSolidMode() {
     // Submodes are default = 0, simple = 1, flashy = 2
@@ -650,40 +676,64 @@ public:
 
   // Color mode
   void UpdateColorMode() {
+    u8_t smode = Submode();
     RGB nav = GetNavColor();
     spon_.Fill(nav);
-    color_mode_state_.SetOpOffset(150);
-    wing_. FillOp(color_mode_state_);
+
+    RGB pix = color_mode_state_.GetPix();
+    color_mode_state_.SetOpScale(1 << 6);
     color_mode_state_.SetOpOffset(0);
     f_isd_. FillOp(color_mode_state_);
     f_osd_.FillOp(color_mode_state_);
-    back_. Fill(nav);
-    tail_osd_.Fill(nav);
-    RGB pix = color_mode_state_.GetPix();
-    tail_frt_.Fill(pix);
-    tail_bck_.Fill(pix);
-    tail_isd_.Fill(pix);
-    
+
+    if (smode == 1) {
+      wing_. Fill(RGBW(brt_));
+      back_.Fill(nav);
+      tail_frt_.Fill(nav);
+      tail_bck_.Fill(nav);
+      tail_isd_.Fill(nav);
+      tail_osd_.Fill(nav);
+    } else {
+      color_mode_state_.SetOpOffset(150);
+      color_mode_state_.SetOpScale(1 << 6);
+      wing_. FillOp(color_mode_state_);
+      color_mode_state_.SetOpScale(1 << 4);  // .25
+      color_mode_state_.SetOpOffset(0);
+      back_. FillOp(color_mode_state_);
+      color_mode_state_.SetOpOffset(130);
+      tail_frt_.FillOp(color_mode_state_);
+      tail_bck_.FillOp(color_mode_state_);
+      RGBW last_pix = tail_bck_.At(tail_bck_.len() - 1);
+      tail_isd_. Fill(last_pix);
+      tail_osd_.Fill(last_pix);
+    }
+
     for (u8_t i = 0; i < NUM_PWM; ++i) {
       pwm_val_[i] = brt_;
     }
   }
-  
+
   // Pulse mode
   void UpdatePulseMode() {
+    u8_t smode = Submode();
     RGB nav = GetNavColor();
     spon_.Fill(nav);
     bool flash = pulse_mode_state_.flash();
     u8_t brt = flash ? spon_brt_ : brt_;
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_val_[i] = brt;
-    }
-    RGBW bw(brt);
-    wing_.Fill(bw);
+
+    u8_t tail_temp = pulse_mode_state_.temp(MAIN_CNT + BACK_CNT);
+    RGBW bw = Lookup5(eng_grad, tail_temp);
+    Fade(&bw, spon_brt_);
     tail_frt_.Fill(bw);
     tail_bck_.Fill(bw);
     tail_isd_.Fill(bw);
     tail_osd_.Fill(bw);
+    if (smode == 2) {
+    bw.wht = brt;
+    } else {
+      bw = RGBW(brt_);  // default and simple
+    }
+    wing_.Fill(bw);
 
     u8_t pwm_idx = 0;
     u16_t pwm_sum = 0;
@@ -694,15 +744,13 @@ public:
       Fade(&pix, spon_brt_);
       f_isd_.At(i) = pix;
       f_osd_.At(i) = pix;
-      if (!flash) {
-	pwm_sum += u16_t(13) * t;
-	if (++pwm_cnt == 10) {
-	  pwm_sum  = pwm_sum >> 7;
-	  u8_t v = (pwm_sum > 255) ? 255 : pwm_sum;
-	  pwm_val_[pwm_idx++] = bscale8(v, spon_brt_);
-	  pwm_sum = 0;
-	  pwm_cnt = 0;
-	}
+      pwm_sum += u16_t(10) * t;
+      if (++pwm_cnt == 10) {
+        pwm_sum  = pwm_sum >> 7;
+        u8_t v = (pwm_sum > 255) ? 255 : pwm_sum;
+        pwm_val_[pwm_idx++] = bscale8(logify(v), spon_brt_);
+        pwm_sum = 0;
+        pwm_cnt = 0;
       }
     }
     pwm_sum = 0;
@@ -712,20 +760,28 @@ public:
       RGB pix = Lookup5(eng_grad, t);
       Fade(&pix, spon_brt_);
       back_.At(i) = pix;
-      if (!flash) {
-	pwm_sum += t;
-	if (++pwm_cnt == 8) {
-	  u8_t v = pwm_sum >> 3;
-	  pwm_val_[pwm_idx++] = bscale8(v, spon_brt_);
-	  pwm_sum = 0;
-	  pwm_cnt = 1;
-	}
+      pwm_sum += t;
+      if (++pwm_cnt == 8) {
+        u8_t v = pwm_sum >> 3;
+        pwm_val_[pwm_idx++] = bscale8(logify(v), spon_brt_);
+        pwm_sum = 0;
+        pwm_cnt = 1;
       }
     }
-    DBG_LO(APP, ("PulseU: flash: %c pwm_idx: %d "
-		 "pwm[%02x, %02x, %02x, %02x, %02x]\n",
-		 (flash ? 'T' : 'F'), pwm_idx, pwm_val_[0], pwm_val_[1],
-		 pwm_val_[2], pwm_val_[3], pwm_val_[4]));
+
+    // In default mode just let pwm from above show (no flash).
+    // In simple mode set it to slider brightness
+    // In fancy mode flash it at spon_brt
+    if (Submode() == 1 || (Submode() == 2 && flash)) {
+      if (Submode() == 1) brt = brt_;  // dont' flash in
+      for (u8_t i = 0; i < NUM_PWM; ++i) {
+        pwm_val_[i] = brt;
+      }
+    }
+    DBG_HI(APP, ("PulseU: flash: %c pwm_idx: %d "
+                 "pwm[%02x, %02x, %02x, %02x, %02x]\n",
+                 (flash ? 'T' : 'F'), pwm_idx, pwm_val_[0], pwm_val_[1],
+                 pwm_val_[2], pwm_val_[3], pwm_val_[4]));
   }
 
   // lvl is overall brightness mode (off, med, hi)
@@ -754,7 +810,7 @@ public:
 
   void SendState(SyncableChannel* ch) {
     ch->WriteByte(CMD_CTRL_STATE);
-    state_.Send(ch, 6); 
+    state_.Send(ch, 6);
 
     ch->WriteByte(CMD_CLR_STATE);
     color_mode_state_.Send(ch, 6);
@@ -786,8 +842,8 @@ public:
     UpdateBright(state_.level, state_.brt);
     bool is_host = (host_ == HOST);
     solid_state_.UpdateState(is_host, brt_, spon_brt_);
-    color_mode_state_.UpdateState(is_host, state_.thr, spon_brt_);
-    pulse_mode_state_.UpdateState(is_host, state_.thr);
+    color_mode_state_.UpdateState(is_host, Submode(), state_.thr, spon_brt_);
+    pulse_mode_state_.UpdateState(is_host, Submode(), state_.thr);
   }
 
   void Update(u16_t now) {
@@ -822,7 +878,7 @@ public:
     tail_osd_. Rotate();
     tail_bck_. Rotate();
   }
-  
+
   u8_t host_;
   PinId led_pin_;
   Pwm* const pwm_;
@@ -907,7 +963,7 @@ public:
     u8_t now_8 = now_ >> 8;  // 1/4 seconds
     // Update state if forced,  sbus settings change or 1/4 sec has elapsed.
     if (force_state_update || now_8 != prev_update_ ||
-	lights_->SBusUpdate(sbus) ) {
+        lights_->SBusUpdate(sbus) ) {
       prev_update_ = now_8;
       lights_->ApplyUpdatedState();
       lights_->SendState(&ch_);
@@ -915,7 +971,7 @@ public:
     ch_.WriteByte(CMD_UPDATE);
     ch_.WriteByte(update_cnt_);
     ch_.WriteBytes(reinterpret_cast<const u8_t*>(&now_),
-		   sizeof(now_), /*flush=*/true);
+                   sizeof(now_), /*flush=*/true);
     DoUpdate();
   }
 
@@ -925,54 +981,54 @@ public:
     switch (packet[0]) {
     case CMD_UPDATE:
       {
-	memcpy(&now_, packet + 2, sizeof(now_));
-	const u8_t host_cnt = packet[1];
-	if (update_cnt_ - host_cnt > 4) {
-	  // If this delta is too large then something unexpected happened
-	  // and running extra update 'to catch up' is probably not going to
-	  // help and could help, so just do one.
-	  update_cnt_ = host_cnt - 1;
-	}
-	
-	if (state_pkts_ == 3) {  // Process state update now.
-	  if (!run_) {
-	    ClaimClient();
-	    update_cnt_ = host_cnt - 1;
-	  }
-	  lights_->Receive(ctrl_packet_);
-	  lights_->Receive(clr_packet_);
-	  lights_->Receive(pls_packet_);
-	  lights_->ApplyUpdatedState();
-	}
-	while (update_cnt_ != host_cnt) {
-	  DoUpdate();
-	}
+        memcpy(&now_, packet + 2, sizeof(now_));
+        const u8_t host_cnt = packet[1];
+        if (update_cnt_ - host_cnt > 4) {
+          // If this delta is too large then something unexpected happened
+          // and running extra update 'to catch up' is probably not going to
+          // help and could help, so just do one.
+          update_cnt_ = host_cnt - 1;
+        }
+
+        if (state_pkts_ == 3) {  // Process state update now.
+          if (!run_) {
+            ClaimClient();
+            update_cnt_ = host_cnt - 1;
+          }
+          lights_->Receive(ctrl_packet_);
+          lights_->Receive(clr_packet_);
+          lights_->Receive(pls_packet_);
+          lights_->ApplyUpdatedState();
+        }
+        while (update_cnt_ != host_cnt) {
+          DoUpdate();
+        }
       }
       break;
-      
+
     case CMD_CTRL_STATE:
       memcpy(ctrl_packet_, packet, 7);
       state_pkts_ = 1;
       break;
     case CMD_CLR_STATE:
       if (state_pkts_ == 1) {
-	memcpy(clr_packet_, packet, 7);
-	++state_pkts_;
+        memcpy(clr_packet_, packet, 7);
+        ++state_pkts_;
       } else {
-	state_pkts_ = 0;
+        state_pkts_ = 0;
       }
       break;
     case CMD_PLS_STATE:
       if (state_pkts_ == 2) {
-	memcpy(pls_packet_, packet, 7);
-	++state_pkts_;
+        memcpy(pls_packet_, packet, 7);
+        ++state_pkts_;
       } else {
-	state_pkts_ = 0;
-      }	  
+        state_pkts_ = 0;
+      }
       break;
     }
   }
-  
+
   void CheckChannel() {
     if (run_ && host_) return;  // Not reading from host.
     while (ch_.DoRead()) {
@@ -985,13 +1041,13 @@ public:
   void CheckSBus(SBus* sbus) {
     if (run_ && !host_) return;  // Not reading from SBus
     if (!sbus->Run()) return;  // No data from SBus
-    
+
     if (!run_) {
       ClaimHost(); // We got SBus packet, thus we are host
       HostUpdate(sbus, /*force_state_update=*/true);
     }
   }
-  
+
   void Run(SBus* sbus) {
     // Check channel, will do nothing if known host.
     CheckChannel();
@@ -1034,10 +1090,10 @@ int main(void)
   led_pin.SetOutput();
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
- 
+
   Lights lights(LED_PIN, &pwm);
   StateManager state_mgr(&Serial::usart1, &lights);
-  
+
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
 
@@ -1057,7 +1113,7 @@ int main(void)
     if (now_5 == update_5) continue;
     update_5 = now_5;
     state_mgr.HostUpdate(&sbus);  // Won't do anything if not known host
-	
+
     if (now_8 == update_8) continue;
     update_8 = now_8;
     u8_t phase = (now_8 & 0x07);

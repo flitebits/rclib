@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include "WS2812.h"
@@ -83,7 +83,7 @@
 namespace {
   void SendWS2812Scale(PinId pin, void* ptr, u16_t len, u8_t scale) __attribute__((optimize("O1")));
   void SendWS2812Full(PinId pin, void* ptr, u16_t len) __attribute__((optimize("O1")));
-  
+
   void SendWS2812Full(PinId pin, void* ptr, u16_t len) {
     PORT_t *const port = pin.port_ptr();
     const u8_t mask = 1 << pin.pin();
@@ -98,7 +98,7 @@ namespace {
         else SEND_0(port, mask, 0);
         b1 = *(p++);
         if (b & 0x20) SEND_1(port, mask, 0);
-        else SEND_0(port, mask, 0); 
+        else SEND_0(port, mask, 0);
         if (b & 0x10) SEND_1(port, mask, 0);
         else SEND_0(port, mask, 0);
         if (b & 0x08) SEND_1(port, mask, 0);
@@ -107,7 +107,7 @@ namespace {
         else SEND_0(port, mask, 0);
         if (b & 0x02) SEND_1(port, mask, 1);
         else SEND_0(port, mask, 1);
-	    len--;
+            len--;
         if (b & 0x01) SEND_1(port, mask, 6);
         else SEND_0(port, mask, 6);
       }
@@ -126,7 +126,7 @@ namespace {
         if (b & 0x80) SEND_1(port, mask, 0);
         else SEND_0(port, mask, 0);
 
-	const u8_t bc = b;
+        const u8_t bc = b;
 
         if (b & 0x40) SEND_1(port, mask, 3);
         else SEND_0(port, mask, 3);
@@ -134,7 +134,7 @@ namespace {
         const u8_t nb = *(p++);
 
         if (b & 0x20) SEND_1(port, mask, 0);
-        else SEND_0(port, mask, 0); 
+        else SEND_0(port, mask, 0);
         if (b & 0x10) SEND_1(port, mask, 4);
         else SEND_0(port, mask, 4);
 
@@ -143,14 +143,14 @@ namespace {
         if (b & 0x08) SEND_1(port, mask, 1);
         else SEND_0(port, mask, 1);
 
-	b = b1 >> 8;
+        b = b1 >> 8;
 
         if (bc & 0x04) SEND_1(port, mask, 0);
         else SEND_0(port, mask, 0);
         if (bc & 0x02) SEND_1(port, mask, 1);
         else SEND_0(port, mask, 1);
 
-	len--;
+        len--;
 
         if (bc & 0x01) SEND_1(port, mask, 6);
         else SEND_0(port, mask, 6);
