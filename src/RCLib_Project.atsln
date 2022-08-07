@@ -35,6 +35,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "dipper", "dipper\dipper.cpp
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_A10", "FT_A10\FT_A10.cppproj", "{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "BristolSpadport", "BristolSpadport\BristolSpadport.cppproj", "{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -94,6 +96,10 @@ Global
 		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Debug|AVR.Build.0 = Debug|AVR
 		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Release|AVR.ActiveCfg = Release|AVR
 		{679DCEF0-D8C9-4C3C-824A-2C34DE9A8FA4}.Release|AVR.Build.0 = Release|AVR
+		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Debug|AVR.ActiveCfg = Debug|AVR
+		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Debug|AVR.Build.0 = Debug|AVR
+		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Release|AVR.ActiveCfg = Release|AVR
+		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
