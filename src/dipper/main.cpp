@@ -1,4 +1,4 @@
-// Copyright 2021 Thomas DeWeese
+// Copyright 2021, 2022 Thomas DeWeese
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include "leds/Clr.h"
 #include "leds/FPMath.h"
+#include "leds/LedSpan.h"
 #include "leds/Pixel.h"
 #include "leds/Rgb.h"
 
@@ -27,11 +28,14 @@
 #include "Serial.h"
 #include "WS2812.h"
 
+using led::abs;
 using led::bscale8;
+using led::Logify;
 using led::HSV;
 using led::RGBW;
 using led::RGB;
 using led::sin8;
+using led::VariableSaw;
 
 #if defined(__AVR_ATmega4808__)
 #define LED_PIN (PIN_F0)
@@ -81,118 +85,6 @@ static RGB eng_grad[5] = { RGB(0x00, 0x00, 0x00),
                            RGB(0x80, 0x20, 0x00),
                            RGB(0xFF, 0x80, 0x00),
                            RGB(0xFF, 0xFF, 0x80) };
-
-const u8_t log_map[9] = {0, 1, 2, 5, 11, 24, 52, 115, 255};
-
-u8_t logify(u8_t val) {
-  u8_t lo = val & 0x1F;
-  u8_t hi = val >> 5;
-  int ret = ((u16_t(log_map[hi]) << 5) +
-             (i16_t(log_map[hi + 1]) - log_map[hi]) * lo);
-  return (ret + (1<<4)) >> 5;
-}
-
-i16_t abs(i16_t a) { return a < 0 ? -a : a; }
-
-template <class P>
-class LedSpanT {
-public:
-  LedSpanT() : ptr_(NULL), len_(0), reverse_(false) { }
-  void* SetSpan(void* leds, u8_t len, bool reverse = false) {
-    ptr_ = reinterpret_cast<P*>(leds);
-    len_ = len;
-    reverse_ = reverse;
-    return ptr_ + len_;
-  }
-  u8_t len() const { return len_; }
-  void* next_ptr() const { return ptr_ + len_; }
-
-  P& At(u8_t idx) {
-    if (idx < 0) idx = 0;
-    else if ( idx > len_ - 1) idx = len_ - 1;
-
-    if (reverse_) {
-      return ptr_[len_ - 1 - idx];
-    }
-    return ptr_[idx];
-  }
-  void Set(u8_t idx, const P& pix) {
-        At(idx) = pix;
-  }
-  void Fill(const P& pix) {
-    led::Fill(ptr_, len_, pix);
-  }
-
-  template <class O>
-  void FillOp(const O& op) {
-    u16_t step = (u16_t(255) << 8) / len_;
-    u16_t frac = 0;
-    for (u8_t i = 0; i < len_; ++i, frac += step) {
-      P& pix = At(i);
-      op(u8_t(frac >> 8), &pix);
-    }
-  }
-
-  // Forward means N -> N+1, otherwise N+1 -> N (accounting for reverse_).
-  void Rotate(bool forward = true) {
-    if (forward == reverse_) {
-      P p0 = ptr_[0];
-      for (int i = 0; i < len_ - 1; ++i) {
-        ptr_[i] = ptr_[i + 1];
-      }
-      ptr_[len_ - 1] = p0;
-    } else {
-      P pn = ptr_[len_ - 1];
-      for (int i = len_ - 1; i > 0; --i) {
-        ptr_[i] = ptr_[i - 1];
-      }
-      ptr_[0] = pn;
-    }
-  }
-
-protected:
-  P* ptr_;
-  u8_t len_;
-  bool reverse_;
-};
-
-// This supports changing the saw pattern speed while running without
-// introducing big jumps.  It basicaly aligns the phase of the new saw
-// with the previous saw.
-// Speed is the counts/ms as a 8.8 Fixed Point Number.
-// If you set it to 1 then it completes a cycle in 1 minute
-class VariableSaw {
-public:
-  VariableSaw(u16_t speed = 0) : off_(0), spd_(speed), prev_time_(0) { }
-
-  // Speed is the counts/ms as a 8.8 Fixed Point Number.
-  // If you set it to 1 then it completes a cycle in 1 minute
-  void SetSpeed(u16_t speed) {
-    u8_t prev = Get(prev_time_);
-    spd_ = speed;
-    u8_t curr = Get(prev_time_);
-    // Add the difference to off so that at prev_time_ the old speed and
-    // new speed are aligned.
-    off_ += prev - curr;
-  }
-
-  u8_t Get(u16_t now) {
-    prev_time_ = now;
-    return u8_t(((now * spd_) + (1 << 7)) >> 8) + off_;
-  }
-
-  u8_t GetOff() { return off_; }
-  void SetState(u16_t speed, u8_t off) {
-    spd_ = speed;
-    off_ = off;
-  }
-
-
-private:
-  u8_t off_;
-  u16_t spd_;
-  u16_t prev_time_;
-};
 
 // This class uses a packet structure that starts with a key byte that
 // signals the start of a packet by having it's high bit set, no other bytes
@@ -303,7 +195,7 @@ struct CtrlState {
 
   // brt & thr are 0 -> 2047 nominal.
   CtrlState() : mode(0), level(0), brt(0), thr(0) { }
-  CtrlState(  u8_t m, u8_t l, i16_t b, i16_t t)
+  CtrlState(u8_t m, u8_t l, i16_t b, i16_t t)
     : mode(m), level(l), brt(b), thr(t) { }
 
   u8_t Set(SBus* sbus) {
@@ -318,7 +210,7 @@ struct CtrlState {
   }
 
   u8_t UpdateFromState(const CtrlState& other) {
-    u8_t change = 0;
+    u8_t change = CHG_NONE;
     change |= (other.mode != mode) ? CHG_MODE : 0;
     change |= (other.level != level) ? CHG_LVL : 0;
     change |= abs(other.brt - brt) > 10 ? CHG_BRT : 0;
@@ -413,12 +305,12 @@ public:
   void operator() (u8_t frac, RGB* pix) const {
     frac = (u16_t(frac) * scale_) >> 6;
     *pix = color_;
-    Fade(pix, logify(sin8(offset_ + pulse_phase_ + frac)));
+    Fade(pix, Logify(sin8(offset_ + pulse_phase_ + frac)));
   }
   void operator() (u8_t frac, RGBW* pix) const {
     frac = (u16_t(frac) * scale_) >> 6;
     *pix = color_;
-    Fade(pix, logify(sin8(offset_ + pulse_phase_ + frac)));
+    Fade(pix, Logify(sin8(offset_ + pulse_phase_ + frac)));
   }
 
   void Send(SyncableChannel* ch, u8_t max_bytes) {
@@ -680,7 +572,6 @@ public:
     RGB nav = GetNavColor();
     spon_.Fill(nav);
 
-    RGB pix = color_mode_state_.GetPix();
     color_mode_state_.SetOpScale(1 << 6);
     color_mode_state_.SetOpOffset(0);
     f_isd_. FillOp(color_mode_state_);
@@ -748,7 +639,7 @@ public:
       if (++pwm_cnt == 10) {
         pwm_sum  = pwm_sum >> 7;
         u8_t v = (pwm_sum > 255) ? 255 : pwm_sum;
-        pwm_val_[pwm_idx++] = bscale8(logify(v), spon_brt_);
+        pwm_val_[pwm_idx++] = bscale8(Logify(v), spon_brt_);
         pwm_sum = 0;
         pwm_cnt = 0;
       }
@@ -763,7 +654,7 @@ public:
       pwm_sum += t;
       if (++pwm_cnt == 8) {
         u8_t v = pwm_sum >> 3;
-        pwm_val_[pwm_idx++] = bscale8(logify(v), spon_brt_);
+        pwm_val_[pwm_idx++] = bscale8(Logify(v), spon_brt_);
         pwm_sum = 0;
         pwm_cnt = 1;
       }
@@ -889,15 +780,15 @@ public:
   SolidState solid_state_;
   ColorModeState color_mode_state_;
   PulseModeState pulse_mode_state_;
-  LedSpanT<RGBW> wing_;
-  LedSpanT<RGBW> spon_;
-  LedSpanT<RGB>  back_;
-  LedSpanT<RGB>  f_isd_;
-  LedSpanT<RGB>  f_osd_;
-  LedSpanT<RGBW> tail_frt_;
-  LedSpanT<RGBW> tail_isd_;
-  LedSpanT<RGBW> tail_osd_;
-  LedSpanT<RGBW> tail_bck_;
+  LedSpan<RGBW> wing_;
+  LedSpan<RGBW> spon_;
+  LedSpan<RGB>  back_;
+  LedSpan<RGB>  f_isd_;
+  LedSpan<RGB>  f_osd_;
+  LedSpan<RGBW> tail_frt_;
+  LedSpan<RGBW> tail_isd_;
+  LedSpan<RGBW> tail_osd_;
+  LedSpan<RGBW> tail_bck_;
 };
 
 class StateManager {

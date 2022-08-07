@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include <avr/io.h>
@@ -22,16 +22,20 @@
 #include "WS2812.h"
 
 // LED helper functions.
-#include "leds/Rgb.h"
 #include "leds/Clr.h"
+#include "leds/Pixel.h"
+#include "leds/Rgb.h"
+#include "leds/FPMath.h"
+
+using led::RGB;
+using led::Logify;
+using led::Lookup9;
+using led::bscale8;
 
 const bool HEARTBEAT = false;  // set true to get heartbeat on board led.
 
-
-#define LED_PIN (PIN_F0)
+#define LED_PIN (PIN_C2)
 const int NUM_LEDS = 10;
-
-u8_t log_map[9] = {1, 2, 4, 8, 16, 32, 64, 128, 255};
 
 u32_t seed;
 void randomSeed(u16_t new_seed) {
@@ -46,35 +50,24 @@ u16_t random(u16_t range) {
   return (u32_t(((seed >> 8) & 0xFFFF) + 1) * range) >> 16;
 }
 
-u8_t logify(u8_t val) {
-  u8_t lo = val & 0x1F;
-  u8_t hi = val >> 5;
-  int ret = ((u16_t(log_map[hi]) << 5) + (i16_t(log_map[hi + 1]) - log_map[hi]) * lo);
-  return (ret + (1<<4)) >> 5;
-}
+// clr_grad goes from pure red through yellow, to white.
+// It's kind of like color tempurature.
+const RGB clr_grad[9] {
+    RGB(0xFF, 0x00, 0x00), RGB(0xFF, 0x18, 0x00), RGB(0xFF, 0x38, 0x00),
+    RGB(0xFF, 0x60, 0x00), RGB(0xFF, 0x80, 0x00), RGB(0xFF, 0x80, 0x10),
+    RGB(0xFF, 0x80, 0x20), RGB(0xFF, 0x80, 0x40), RGB(0xFF, 0x90, 0x80)};
 
 struct Clr {
-  // clr goes from pure red through yellow at 128, to white.
-  // It's kind of like color tempurature.
   u8_t clr;
-  // How bright the value is.
-  u8_t brt;
+  u8_t brt; // How bright the value is.
   // clr goes from pure red through yellow at 128, to white.
   // It's kind of like color tempurature.
   led::RGB ToRgb() {
-    led::RGB rgb;
-    if (clr < 128) {
-      rgb.grn = (clr << 1) + 1;
-      rgb.blu = 0;
-    } else {
-      rgb.grn = 255;
-      rgb.blu = ((clr - 128) << 1) + 1;
-    }
-    
-    u16_t b = logify(brt);
+    led::RGB rgb = Lookup9(clr_grad, clr);
+    u8_t b = Logify(brt);
     rgb.red = b;
-    rgb.grn = (rgb.grn * b) >> 8;
-    rgb.blu = (rgb.blu * b) >> 8;
+    rgb.grn = bscale8(rgb.grn, b);
+    rgb.blu = bscale8(rgb.blu, b);
     return rgb;
   }
 };
@@ -91,9 +84,9 @@ struct Pix {
     adden = random8(64) + 8;
     tgt.clr = random8(255);
     // Alternate bright and dark.
-    tgt.brt = random8(128) + ((curr.brt > 127) ? 0 : 128);  
+    tgt.brt = random8(128) + ((curr.brt > 127) ? 16 : 128);
   }
-  
+
   void Inc() {
     val += adden;
     if (val > (0xFF << 6)) Shift();
@@ -109,7 +102,7 @@ struct Pix {
   u8_t ToPwm() {
     u8_t v = ((val + (1<<5)) >> 6);
     u8_t brt = curr.brt + (((tgt.brt - i16_t(curr.brt)) * v) >> 8);
-    return logify(brt);
+    return Logify(brt);
   }
   protected:
     u8_t adden; // 2.6 fp
@@ -125,15 +118,14 @@ void update_leds(Pix* pixs, led::RGB* leds, int len) {
   }
 }
 
-const int NUM_STRAND = 5;
+const int NUM_STRAND = 6;
 Pix strand[NUM_STRAND];
-u8_t map[NUM_STRAND] = {0, 1, 2, 3, 5};
+u8_t map[NUM_STRAND] = {0, 1, 2, 3, 4, 5};
 void update_strands(Pwm* pwm) {
   for (int i = 0; i < NUM_STRAND; ++i) {
     strand[i].Inc();
     pwm->Set(map[i], strand[i].ToPwm());
-  }  
-  pwm->Set(4, 0x7F);
+  }
 }
 
 int main(void) {
@@ -141,20 +133,20 @@ int main(void) {
   Pix pixs[NUM_LEDS];
 
   // Do very basic chip config, in particular setup base clocks.
-  Boot(/*target_pdiv=*/2, /*use_internal_32Kclk=*/true);
+  Boot(/*target_pdiv=*/1, /*use_internal_32Kclk=*/true);
   SetupRtcClock(/*use_internal_32K=*/true);
   DBG_INIT(Serial::usart0, 115200);
 
   Adc adc;
   adc.ConfigurePin(6);    // Read a "mostly random" seed from Analog pin 6 (PD6)
   randomSeed(adc.Read(6));
-  
+
   // Configure LED pin as output (low, not inverted, not pullup)
-  PinId(LED_PIN).SetOutput(0);
+  PinId(LED_PIN).SetOutput();
   // Blnky Led on board
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput(1);  // High is led off.
-  
+
   // Pwm module use the 3 TCA timers as split 8bit PWM control providing
   // up to 6 channels of PWM.
   Pwm pwm(PORT_D, 1000);  // Select what port to use and freq of PWM
@@ -162,7 +154,7 @@ int main(void) {
     pwm.Enable(i);  // Enable PWM on pins D0-D5
     pwm.Set(i, 0);
   }
-  
+
   // Enable interrupts (end of init, real program begin).
   sei();
 
@@ -185,4 +177,3 @@ int main(void) {
     }
   }
 }
-
