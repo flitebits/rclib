@@ -215,6 +215,9 @@
     <Compile Include="IntTypes.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="KeyScan.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="KissTelemetry.cpp">
       <SubType>compile</SubType>
     </Compile>

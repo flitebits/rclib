@@ -37,6 +37,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_A10", "FT_A10\FT_A10.cpp
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "BristolSpadport", "BristolSpadport\BristolSpadport.cppproj", "{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "HK_Albatross", "HK_Albatross\HK_Albatross.cppproj", "{45AEACCB-20A4-492F-B0A0-41BF1709D48C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -100,6 +102,10 @@ Global
 		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Debug|AVR.Build.0 = Debug|AVR
 		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Release|AVR.ActiveCfg = Release|AVR
 		{33FB8940-E407-41CC-9C26-1D1CA8DA08F9}.Release|AVR.Build.0 = Release|AVR
+		{45AEACCB-20A4-492F-B0A0-41BF1709D48C}.Debug|AVR.ActiveCfg = Debug|AVR
+		{45AEACCB-20A4-492F-B0A0-41BF1709D48C}.Debug|AVR.Build.0 = Debug|AVR
+		{45AEACCB-20A4-492F-B0A0-41BF1709D48C}.Release|AVR.ActiveCfg = Release|AVR
+		{45AEACCB-20A4-492F-B0A0-41BF1709D48C}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

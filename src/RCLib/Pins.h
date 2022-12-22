@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #ifndef _Pins_4809_
@@ -98,18 +98,34 @@ PORT_t* GetPortStruct(PinGroupId);
 
 class PinId {
 public:
+  PinId() : val_(PIN_UNDEFINED) { }
   PinId(PinIdEnum pinVal) : val_(pinVal) { }
   PinId(PinGroupId pin_group, u8_t pin) :
     val_(PinIdEnum((pin_group << 4) | pin)) { }
+  void SetPin(PinIdEnum pinVal) { val_ = pinVal; }
+
   void SetOutput(bool state = false, bool inverted = false,
-		 bool pullup = false) {
+                 bool pullup = false) {
     PORT_t* port = port_ptr();
     u8_t pidx = pin();
     *pin_ctrl() = ((inverted ? PORT_INVEN_bm : 0) |
-		   (pullup ? PORT_PULLUPEN_bm : 0));
+                   (pullup ? PORT_PULLUPEN_bm : 0));
     if (state) port->OUTSET = 1 << pidx;
     else       port->OUTCLR = 1 << pidx;
     port->DIRSET = 1 << pidx;
+  }
+  /*
+     PORT_ISC_INTDISABLE_gc, // Interrupt disabled but input buffer enabled
+     PORT_ISC_BOTHEDGES_gc = (0x01<<0), //Sense Both Edges
+     PORT_ISC_RISING_gc = (0x02<<0),  // Sense Rising Edge
+     PORT_ISC_FALLING_gc = (0x03<<0),  // Sense Falling Edge
+     PORT_ISC_INPUT_DISABLE_gc = (0x04<<0),  // Digital Input Buffer disabled  */
+  void SetInput(bool inverted = false, bool pullup = false,
+                PORT_ISC_t interrupt_mode = PORT_ISC_INTDISABLE_gc) {
+    *pin_ctrl() = ((inverted ? PORT_INVEN_bm : 0) |
+                   (pullup ? PORT_PULLUPEN_bm : 0) |
+                   interrupt_mode);
+    port_ptr()->DIRCLR = 1 << pin();
   }
   void toggle() { port_ptr()->OUTTGL = (1 << pin()); }
   void set(bool state) {
@@ -117,7 +133,9 @@ public:
     else       port_ptr()->OUTCLR = (1 << pin());
   }
   bool get() { return port_ptr()->OUT & (1 << pin()); }
-  
+
+  bool in() { return port_ptr()->IN & (1 << pin()); }
+
   PinGroupId port() { return PinGroupId(val_ >> 4); }
   u8_t pin() { return val_ & 0xF; }
   PORT_t* port_ptr() { return GetPortStruct(port()); }

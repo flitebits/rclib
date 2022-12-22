@@ -19,6 +19,7 @@
 #include "leds/Clr.h"
 #include "leds/FPMath.h"
 #include "leds/LedSpan.h"
+#include "leds/LedSpanOps.h"
 #include "leds/Pixel.h"
 #include "leds/Rgb.h"
 
@@ -34,13 +35,14 @@ using led::RGB;
 using led::RGBW;
 using led::bscale8;
 using led::sin8;
+using led::VariableSaw;
 
 #if defined(__AVR_ATmega4808__)
 #define LED_PIN (PIN_F0)
 #endif
 
 #if defined(__AVR_ATmega4809__)
-#define LED_PIN (PIN_F0)
+#define LED_PIN (PIN_C2)
 #endif
 
 #define LIGHT_BRIGHT_CH (10)  // Adjust leading edge light brightness.
@@ -54,10 +56,21 @@ using led::sin8;
 #define RUDR_CNT (10)
 #define ELEV_CNT (15)
 
-#define RGBW_CNT (FUSE_CNT + RUDR_CNT + 2 * ELEV_CNT)
+#define WING_CNT (21)  // Each wing half has 21 RGBW
+#define TIP_CNT (8)   // Each wing tip has 8 RGBW
+
+#define RGBW_CNT (FUSE_CNT + RUDR_CNT + 2 * ELEV_CNT + \
+                  4 * (WING_CNT + TIP_CNT))
 
 u8_t led_data[RGBW_CNT * 4];
 
+enum PwmCh {
+            PWM_WING = 0,
+            PWM_LTIP = 1,
+            PWM_FUSE = 2,
+            PWM_TAIL = 3,
+            PWM_RTIP = 4,
+};
 
 struct CtrlState {
   enum  ChangeBits {
@@ -103,22 +116,125 @@ struct CtrlState {
 
 };
 
-class SinFilled {
+class SolidModeState {
 public:
-  SinFilled(const RGBW& color, u8_t scale, u8_t offset = 0) :
-    scale_(scale), color_(color), offset_(offset) { }
-  void SetOffset(u8_t offset) { offset_ = offset; }
-  u8_t GetOffset() { return offset_; }
+  SolidModeState()
+    : brt_(0), scale_(0), wave_phase_(0), blink_sec_(0), blink_(false) { }
 
+  bool blink() const { return blink_; }
+
+  void UpdateState(i16_t thr, u8_t brt) {
+    brt_ = brt;
+    // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
+    // speed multiplier go from 0 -> 4x with throttle.
+    u8_t spd = (thr + (1 <<3)) >> 4;
+    if (spd < 0x07) spd = 0x07;
+    wave_saw_.SetSpeed(u16_t(spd));
+  }
+  void Update(u16_t now_ms) {
+    wave_phase_ = 255 - wave_saw_.Get(now_ms);
+    u8_t now_s = now_ms >> 10;
+    u8_t now_5 = (now_ms >> 5) & 0x1F;
+    if (now_s - blink_sec_ >= 2) {
+      blink_sec_ = now_s;
+      blink_ = true;
+    } else if (now_5 >= 1) {
+      blink_ = false;
+    }
+  }
+
+  // Scale is 2.6 FP number
+  void SetOp(const RGBW& color, u8_t scale) {
+    color_ = color;
+    scale_ = scale;
+  }
   void operator() (u8_t frac, RGBW* pix) const {
     frac = (u16_t(frac) * scale_) >> 6;
     *pix = color_;
-    Fade(pix, Logify(sin8(offset_ + frac)));
+    Fade(pix, Logify(sin8(wave_phase_ + frac)));
   }
-private:
-  const u8_t scale_;
-  const RGBW color_;
+
+protected:
+  u8_t brt_;
+  u8_t scale_;
+  u8_t wave_phase_;
+  u8_t blink_sec_;
+  RGBW color_;
+  VariableSaw wave_saw_;
+  bool blink_;
+};
+
+class ColorModeState {
+public:
+  ColorModeState()
+    : brt_(0), pulse_phase_(0), scale_(0), offset_(0) { }
+
+  void UpdateState(u8_t submode, i16_t thr, u8_t brt) {
+    submode_ = submode;
+    brt_ = brt;
+    // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
+    // speed multiplier go from 0 -> 4x with throttle.
+    u8_t spd = (thr + (1 <<3)) >> 4;
+    if (spd < 0x07) spd = 0x07;
+    color_saw_.SetSpeed(spd >> 1);
+    pulse_saw_.SetSpeed(u16_t(spd) << 1);
+  }
+
+  void Update(u16_t now) {
+    u8_t color_hue = color_saw_.Get(now);
+    if (submode_ != 2) {
+      // Limit hue to 0 -> 16 (red -> orange)
+      // so limit to 16 and subtract 4 (it's unsigned so the negative
+      // values wrap to high values which is fine).
+      if (color_hue >= 128) {
+        // If it's greater than 128 the reflect it back towards zero.
+        color_hue = 255 - color_hue;
+      }
+      // Now limited to 0->128, so divide by 8 so it's 0-16.
+      color_hue = (color_hue >> 3);
+    }
+    color_ = HsvToRgb(HSV(color_hue, 0xFF, brt_));
+    pulse_phase_ = 255 - pulse_saw_.Get(now);
+  }
+  const RGB& GetPix() { return color_; }
+
+  void SetOpOffset(u8_t offset) {
+    offset_ = offset;
+  }
+  // Scale is 2.6 FP number
+  void SetOpScale(u8_t scale) {
+    scale_ = scale;
+  }
+  void operator() (u8_t frac, RGBW* pix) const {
+    frac = (u16_t(frac) * scale_) >> 6;
+    *pix = color_;
+    Fade(pix, Logify(sin8(offset_ + pulse_phase_ + frac)));
+  }
+
+protected:
+  struct WireData {
+    u8_t color_off;
+    u8_t pulse_off;
+  };
+  WireData wire_;
+  u8_t submode_;
+  u8_t brt_;
+  VariableSaw color_saw_;
+  VariableSaw pulse_saw_;
+  u8_t pulse_phase_;
+  u8_t scale_;
   u8_t offset_;
+  RGB color_;
+};
+
+class PulseModeState {
+public:
+  PulseModeState() { }
+
+  void UpdateState(u8_t submode, i16_t thr) {
+  }
+  void Update(u16_t now_ms) {
+  }
 };
 
 class Lights {
@@ -133,8 +249,20 @@ public:
       pwm_->Set(i, pwm_val_[i]);
       pwm_->Enable(i);
     }
+    state_.mode = 6;
+    state_.level = 1;
+    // state_.brt = 0x080;
 
     void* ptr = led_data;
+    ptr = ll_tip_ .SetSpan(ptr, TIP_CNT, false);
+    ptr = ll_wing_.SetSpan(ptr, WING_CNT, true);
+    ptr = lr_wing_.SetSpan(ptr, WING_CNT, false);
+    ptr = lr_tip_ .SetSpan(ptr, TIP_CNT, false);
+    ptr = ur_tip_ .SetSpan(ptr, TIP_CNT, false);
+    ptr = ur_wing_.SetSpan(ptr, WING_CNT, true);
+    ptr = ul_wing_.SetSpan(ptr, WING_CNT, false);
+    ptr = ul_tip_ .SetSpan(ptr, TIP_CNT, false);
+
     ptr = fuse_.SetSpan(ptr, FUSE_CNT, false);
     ptr = rudr_.SetSpan(ptr, RUDR_CNT, false);
     ptr = elvr_.SetSpan(ptr, ELEV_CNT, true);
@@ -156,7 +284,7 @@ public:
   }
   void PushPwm() {
     for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_->Set(i, pwm_val_[4 - i]); // PWM are back (idx =0) to front (idx=4)
+      pwm_->Set(i, pwm_val_[i]);
     }
   }
   void Push() {
@@ -185,6 +313,7 @@ public:
     case 1: spon_brt_ = 0x40; brt_ = brt_ >> 3; break;
     case 2: spon_brt_ = 0xFF; break;
     }
+
     DBG_HI(APP, ("Update Brt: %d Spn: %d\n", brt_, spon_brt_));
   }
 
@@ -193,36 +322,18 @@ public:
     state_change_ = CtrlState::CHG_NONE;
     mode_ = state_.mode;
     UpdateBright(state_.level, state_.brt);
-    SinFilled red(led::wclr::red, 1 << 6);
-    SinFilled grn(led::wclr::green, 1 << 6);
-    SinFilled wht(led::wclr::white, 1 << 6);
-    SinFilled blu(led::wclr::blue, 1 << 6);
-    fuse_.FillOp(blu);
-    rudr_.FillOp(wht);
-    elvr_.FillOp(grn);
-    elvl_.FillOp(red);
-    /*
-    bool is_host = (host_ == HOST);
-    solid_state_.UpdateState(is_host, brt_, spon_brt_);
-    color_mode_state_.UpdateState(is_host, Submode(), state_.thr, spon_brt_);
-    pulse_mode_state_.UpdateState(is_host, Submode(), state_.thr);
-    */
+    solid_mode_state_.UpdateState(state_.thr, brt_);
+    color_mode_state_.UpdateState(Submode(), state_.thr, spon_brt_);
+    pulse_mode_state_.UpdateState(Submode(), state_.thr);
   }
 
   void Update(u16_t now) {
     DBG_HI(APP, ("Lights::Update now: %u\n", now));
-    fuse_.Rotate();
-    rudr_.Rotate();
-    elvr_.Rotate();
-    elvl_.Rotate();
-    // We want cycle pos to complete a cycle every second (8bits)
-    // 1s = 1024'ms' = 10bits, so shift 2 bits for that, and 5
-    // bits for spd for a total of 7.
-    // u8_t cycle_pos = ((now * spd_) + (1 << 6)) >> 7;
-    // cycle_pos += shared_state_->cycle_pos_offset();
-    /*
     switch (Mode()) {
-    case 0: solid_state_.Update(now); UpdateSolidMode(); break;
+    case 0:
+      solid_mode_state_.Update(now);
+      UpdateSolidMode();
+      break;
     case 1:
       color_mode_state_.Update(now);
       UpdateColorMode();
@@ -232,8 +343,96 @@ public:
       UpdatePulseMode();
       break;
     }
-    */
     Push();
+  }
+
+  void UpdateSolidMode() {
+    u8_t submode = Submode();
+    RGBW rnav = RGBW(0, spon_brt_, 0);
+    RGBW lnav = RGBW(spon_brt_, 0, 0);
+    RGBW wht = RGBW(brt_);
+    if (solid_mode_state_.blink()) {
+      RGBW blink = RGBW(spon_brt_);
+      lr_tip_.Fill(blink);
+      ll_tip_.Fill(blink);
+      ur_tip_.Fill(blink);
+      ul_tip_.Fill(blink);
+    } else {
+      lr_tip_.Fill(rnav);
+      ll_tip_.Fill(lnav);
+      ur_tip_.Fill(rnav);
+      ul_tip_.Fill(lnav);
+    }
+    if (submode != 2) {
+      elvr_.Fill(wht, 0, 7);
+      elvl_.Fill(wht, 0, 7);
+      elvr_.Fill(rnav, 7, 8);
+      elvl_.Fill(lnav, 7, 8);
+      rudr_.Fill(wht, 0, 7);
+      rudr_.Fill(RGBW(spon_brt_), 7, 3);
+    } else {
+      elvr_.Fill(rnav);
+      elvl_.Fill(lnav);
+      rudr_.Fill(RGBW(spon_brt_));
+    }
+
+    if (submode == 0) {
+      ll_wing_.Fill(wht);
+      ul_wing_.Fill(wht);
+      lr_wing_.Fill(wht);
+      ur_wing_.Fill(wht);
+    } else if (submode == 1) {
+      ll_wing_.Fill(wht, 0, 12);
+      ul_wing_.Fill(wht, 0, 12);
+      ll_wing_.Fill(lnav, 12, 9);
+      ul_wing_.Fill(lnav, 12, 9);
+      lr_wing_.Fill(wht, 0, 12);
+      ur_wing_.Fill(wht, 0, 12);
+      lr_wing_.Fill(rnav, 12, 9);
+      ur_wing_.Fill(rnav, 12, 9);
+    } else {  // submode 2
+      solid_mode_state_.SetOp(rnav, 1 << 6);
+      lr_wing_.FillOp(solid_mode_state_);
+      ur_wing_.FillOp(solid_mode_state_);
+      solid_mode_state_.SetOp(lnav, 1 << 6);
+      ll_wing_.FillOp(solid_mode_state_);
+      ul_wing_.FillOp(solid_mode_state_);
+    }
+
+    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] =  spon_brt_;
+    pwm_val_[PWM_FUSE] = pwm_val_[PWM_WING] =  brt_;
+    pwm_val_[PWM_TAIL] = (brt_ < 1 || brt_ > 3) ? brt_ >> 2 : 1;
+  }
+
+  void UpdateColorMode() {
+    RGBW rnav = led::wclr::black; // RGB(0, spon_brt_, 0)
+    lr_tip_.Fill(rnav);
+    ur_tip_.Fill(rnav);
+    elvr_.Fill(RGB(0, spon_brt_, 0));
+
+    RGBW lnav = led::wclr::black; // led::wclr::red;
+    ll_tip_.Fill(lnav);
+    ul_tip_.Fill(lnav);
+    elvl_.Fill(RGB(spon_brt_, 0, 0));
+
+    color_mode_state_.SetOpScale(1 << 6);
+    color_mode_state_.SetOpOffset(0);
+    lr_wing_.FillOp(color_mode_state_);
+    ur_wing_.FillOp(color_mode_state_);
+    ll_wing_.FillOp(color_mode_state_);
+    ul_wing_.FillOp(color_mode_state_);
+
+    color_mode_state_.SetOpScale(1 << 5);
+    fuse_.FillOp(color_mode_state_);
+    color_mode_state_.SetOpOffset(128);
+    rudr_.FillOp(color_mode_state_);
+
+    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] =  spon_brt_;
+    pwm_val_[PWM_FUSE] = pwm_val_[PWM_WING] =  brt_;
+    pwm_val_[PWM_TAIL] = (brt_ < 1 || brt_ > 3) ? brt_ >> 2 : 1;
+  }
+
+  void UpdatePulseMode() {
   }
 
   // Called roughly every 32ms (32 fps)
@@ -242,7 +441,7 @@ public:
     now_ = FastTimeMs();
     u8_t now_8 = now_ >> 8;  // 1/4 seconds
     // Update state if forced,  sbus settings change or 1/4 sec has elapsed.
-    if (now_8 != prev_update_ || SBusUpdate(sbus) ) {
+    if (now_8 != prev_update_) { //  || SBusUpdate(sbus) ) {
       prev_update_ = now_8;
       ApplyUpdatedState();
     }
@@ -257,8 +456,19 @@ private:
   u8_t pwm_val_[NUM_PWM];
   u8_t mode_, brt_, spon_brt_;
   CtrlState state_;
+  SolidModeState solid_mode_state_;
+  ColorModeState color_mode_state_;
+  PulseModeState pulse_mode_state_;
   u8_t state_change_;
 
+  LedSpan<RGBW> ll_tip_;
+  LedSpan<RGBW> ll_wing_;
+  LedSpan<RGBW> lr_wing_;
+  LedSpan<RGBW> lr_tip_;
+  LedSpan<RGBW> ur_tip_;
+  LedSpan<RGBW> ur_wing_;
+  LedSpan<RGBW> ul_wing_;
+  LedSpan<RGBW> ul_tip_;
   LedSpan<RGBW> fuse_;
   LedSpan<RGBW> rudr_;
   LedSpan<RGBW> elvr_;
@@ -270,15 +480,10 @@ int main(void)
   // Do very basic chip config, in particular setup base clocks.
   Boot(/*target_pdiv=*/1, /*use_internal_32Kclk=*/true);
   SetupRtcClock(/*use_internal_32K=*/true);
-  Pwm pwm(PORT_D, 400);
-  for (u8_t i = 0; i < 5; ++i) {
-    pwm.Enable(i);
-    pwm.Set(i, 0);
-  }
 
   DBG_INIT(Serial::usart0, 115200);
-  DBG_LEVEL_MD(APP);
-  DBG_LEVEL_HI(SBUS);
+  DBG_LEVEL_HI(APP);
+  DBG_LEVEL_MD(SBUS);
   SBus sbus(&Serial::usart2, /*invert=*/true);
 
   PinId led_pin(LED_PIN);
@@ -286,10 +491,11 @@ int main(void)
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
 
+  Pwm pwm(PORT_D, 400);
   Lights lights(LED_PIN, &pwm);
 
   sei();
-  DBG_MD(APP, ("Hello World: Test\n"));
+  DBG_MD(APP, ("BristolSpadport: Test\n"));
 
   memset(led_data, 0, sizeof(led_data));
   SendWS2812(LED_PIN, led_data, sizeof(led_data), 0xFF);

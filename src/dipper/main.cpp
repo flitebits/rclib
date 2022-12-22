@@ -28,7 +28,6 @@
 #include "Serial.h"
 #include "WS2812.h"
 
-using led::abs;
 using led::bscale8;
 using led::Logify;
 using led::HSV;

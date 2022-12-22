@@ -39,6 +39,8 @@ public:
 
   // Returns the length of this span.
   u8_t len() const { return len_; }
+  // Returns a ptr to the start of span (makes overlaped spans easier).
+  void* ptr() const { return ptr_; }
   // Returns a ptr to the start of the pixel after this span (see SetSpan
   // for more info).
   void* next_ptr() const { return ptr_ + len_; }
@@ -71,6 +73,13 @@ public:
   void Fill(const P& pix) {
     P* ptr = ptr_;
     P* end = ptr_ + len_;
+    while (ptr != end) *(ptr++) = pix;
+  }
+
+  // Fills all the pixels in the span to to specified color.
+  void Fill(const P& pix, u8_t idx, u8_t len) {
+    P* ptr = reverse_ ? &At(idx + len) : &At(idx);
+    P* end = ptr + len;
     while (ptr != end) *(ptr++) = pix;
   }
 
