@@ -52,12 +52,12 @@ using led::VariableSaw;
 #define LIGHT_THROTTLE_CH (14)  // Adjusts lights speed
 
 #define NUM_PWM (6)
+#define WING_CNT (21)  // Each wing half has 21 RGBW
+#define TIP_CNT (8)   // Each wing tip has 8 RGBW
 #define FUSE_CNT (15)
 #define RUDR_CNT (10)
 #define ELEV_CNT (15)
 
-#define WING_CNT (21)  // Each wing half has 21 RGBW
-#define TIP_CNT (8)   // Each wing tip has 8 RGBW
 
 #define RGBW_CNT (FUSE_CNT + RUDR_CNT + 2 * ELEV_CNT + \
                   4 * (WING_CNT + TIP_CNT))
@@ -116,10 +116,40 @@ struct CtrlState {
 
 };
 
+class LogSinOp {
+public:
+  LogSinOp() : scale_(1<<6), offset_(0) { }
+  LogSinOp(RGBW color, u8_t scale = (1<<6), u8_t offset = 0)
+    :color_(color), scale_(scale), offset_(offset) { }
+  void Set(const RGBW& color, u8_t scale, u8_t offset) {
+    color_ = color;
+    scale_ = scale;
+    offset_ = offset;
+  }
+  void SetColor(const RGBW& color) { color_ = color; }
+  RGBW GetColor() const { return color_; }
+  u8_t GetOffset() const { return offset_; }
+  void SetOffset(u8_t offset) { offset_ = offset; }
+  // Scale is 2.6 FP number
+  u8_t GetScale() const { return scale_; }
+  void SetScale(u8_t scale) { scale_ = scale; }
+
+  void operator() (u8_t frac, RGBW* pix) const {
+    frac = (u16_t(frac) * scale_) >> 6;
+    *pix = color_;
+    Fade(pix, Logify(sin8(frac + offset_ )));
+  }
+
+  RGBW color_;
+  u8_t scale_;
+  u8_t offset_;
+};
+
 class SolidModeState {
 public:
   SolidModeState()
-    : brt_(0), scale_(0), wave_phase_(0), blink_sec_(0), blink_(false) { }
+    : brt_(0), scale_(0), wave_phase_(0),
+      blink_sec_(0), blink_(false) { }
 
   bool blink() const { return blink_; }
 
@@ -127,7 +157,7 @@ public:
     brt_ = brt;
     // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
     // speed multiplier go from 0 -> 4x with throttle.
-    u8_t spd = (thr + (1 <<3)) >> 4;
+    u8_t spd = (thr + (1 <<3)) >> 5;
     if (spd < 0x07) spd = 0x07;
     wave_saw_.SetSpeed(u16_t(spd));
   }
@@ -135,23 +165,18 @@ public:
     wave_phase_ = 255 - wave_saw_.Get(now_ms);
     u8_t now_s = now_ms >> 10;
     u8_t now_5 = (now_ms >> 5) & 0x1F;
-    if (now_s - blink_sec_ >= 2) {
+    if (u8_t(now_s - blink_sec_) >= 2) {
       blink_sec_ = now_s;
       blink_ = true;
     } else if (now_5 >= 1) {
       blink_ = false;
     }
   }
+  const LogSinOp& Op() const { return op_; }
 
   // Scale is 2.6 FP number
-  void SetOp(const RGBW& color, u8_t scale) {
-    color_ = color;
-    scale_ = scale;
-  }
-  void operator() (u8_t frac, RGBW* pix) const {
-    frac = (u16_t(frac) * scale_) >> 6;
-    *pix = color_;
-    Fade(pix, Logify(sin8(wave_phase_ + frac)));
+  void SetOp(const RGBW& color) {
+    op_.Set(color, 1<<6, wave_phase_);
   }
 
 protected:
@@ -159,22 +184,23 @@ protected:
   u8_t scale_;
   u8_t wave_phase_;
   u8_t blink_sec_;
+  bool blink_;
   RGBW color_;
   VariableSaw wave_saw_;
-  bool blink_;
+  LogSinOp op_;
 };
 
 class ColorModeState {
 public:
   ColorModeState()
-    : brt_(0), pulse_phase_(0), scale_(0), offset_(0) { }
+    : brt_(0), pulse_phase_(0) { }
 
   void UpdateState(u8_t submode, i16_t thr, u8_t brt) {
     submode_ = submode;
     brt_ = brt;
     // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
     // speed multiplier go from 0 -> 4x with throttle.
-    u8_t spd = (thr + (1 <<3)) >> 4;
+    u8_t spd = (thr + (1 <<3)) >> 5;
     if (spd < 0x07) spd = 0x07;
     color_saw_.SetSpeed(spd >> 1);
     pulse_saw_.SetSpeed(u16_t(spd) << 1);
@@ -193,22 +219,16 @@ public:
       // Now limited to 0->128, so divide by 8 so it's 0-16.
       color_hue = (color_hue >> 3);
     }
-    color_ = HsvToRgb(HSV(color_hue, 0xFF, brt_));
+    op_.SetColor(HsvToRgb(HSV(color_hue, 0xFF, brt_)));
     pulse_phase_ = 255 - pulse_saw_.Get(now);
   }
   const RGB& GetPix() { return color_; }
 
-  void SetOpOffset(u8_t offset) {
-    offset_ = offset;
-  }
+  const LogSinOp& Op() const { return op_; }
   // Scale is 2.6 FP number
-  void SetOpScale(u8_t scale) {
-    scale_ = scale;
-  }
-  void operator() (u8_t frac, RGBW* pix) const {
-    frac = (u16_t(frac) * scale_) >> 6;
-    *pix = color_;
-    Fade(pix, Logify(sin8(offset_ + pulse_phase_ + frac)));
+  void SetOp(u8_t scale, u8_t offset) {
+    op_.SetScale(scale);
+    op_.SetOffset(pulse_phase_ + offset);
   }
 
 protected:
@@ -222,19 +242,20 @@ protected:
   VariableSaw color_saw_;
   VariableSaw pulse_saw_;
   u8_t pulse_phase_;
-  u8_t scale_;
-  u8_t offset_;
   RGB color_;
+  LogSinOp op_;
 };
 
 class PulseModeState {
 public:
   PulseModeState() { }
-
-  void UpdateState(u8_t submode, i16_t thr) {
+  void UpdateState() {
   }
   void Update(u16_t now_ms) {
   }
+
+protected:
+  u8_t brt_;
 };
 
 class Lights {
@@ -314,7 +335,7 @@ public:
     case 2: spon_brt_ = 0xFF; break;
     }
 
-    DBG_HI(APP, ("Update Brt: %d Spn: %d\n", brt_, spon_brt_));
+    DBG_HI(APP, ("Update Brt: %d Spn: %d lvl: %d\n", brt_, spon_brt_, lvl));
   }
 
   void ApplyUpdatedState() {
@@ -324,11 +345,11 @@ public:
     UpdateBright(state_.level, state_.brt);
     solid_mode_state_.UpdateState(state_.thr, brt_);
     color_mode_state_.UpdateState(Submode(), state_.thr, spon_brt_);
-    pulse_mode_state_.UpdateState(Submode(), state_.thr);
+    pulse_mode_state_.UpdateState();
   }
 
   void Update(u16_t now) {
-    DBG_HI(APP, ("Lights::Update now: %u\n", now));
+    // DBG_HI(APP, ("Lights::Update now: %u\n", now));
     switch (Mode()) {
     case 0:
       solid_mode_state_.Update(now);
@@ -348,32 +369,22 @@ public:
 
   void UpdateSolidMode() {
     u8_t submode = Submode();
-    RGBW rnav = RGBW(0, spon_brt_, 0);
-    RGBW lnav = RGBW(spon_brt_, 0, 0);
+    const bool blink = (submode != 1) && solid_mode_state_.blink();
+    RGBW rnav = blink ? RGBW(spon_brt_) : RGBW(0, spon_brt_, 0);
+    RGBW lnav = blink ? RGBW(spon_brt_) : RGBW(spon_brt_, 0, 0);
+    lr_tip_.Fill(rnav);
+    ll_tip_.Fill(lnav);
+    ur_tip_.Fill(rnav);
+    ul_tip_.Fill(lnav);
+    elvr_.Fill(rnav);
+    elvl_.Fill(lnav);
+    rudr_.Fill(RGBW(spon_brt_));
+
     RGBW wht = RGBW(brt_);
-    if (solid_mode_state_.blink()) {
-      RGBW blink = RGBW(spon_brt_);
-      lr_tip_.Fill(blink);
-      ll_tip_.Fill(blink);
-      ur_tip_.Fill(blink);
-      ul_tip_.Fill(blink);
-    } else {
-      lr_tip_.Fill(rnav);
-      ll_tip_.Fill(lnav);
-      ur_tip_.Fill(rnav);
-      ul_tip_.Fill(lnav);
-    }
     if (submode != 2) {
       elvr_.Fill(wht, 0, 7);
       elvl_.Fill(wht, 0, 7);
-      elvr_.Fill(rnav, 7, 8);
-      elvl_.Fill(lnav, 7, 8);
       rudr_.Fill(wht, 0, 7);
-      rudr_.Fill(RGBW(spon_brt_), 7, 3);
-    } else {
-      elvr_.Fill(rnav);
-      elvl_.Fill(lnav);
-      rudr_.Fill(RGBW(spon_brt_));
     }
 
     if (submode == 0) {
@@ -391,57 +402,61 @@ public:
       lr_wing_.Fill(rnav, 12, 9);
       ur_wing_.Fill(rnav, 12, 9);
     } else {  // submode 2
-      solid_mode_state_.SetOp(rnav, 1 << 6);
-      lr_wing_.FillOp(solid_mode_state_);
-      ur_wing_.FillOp(solid_mode_state_);
-      solid_mode_state_.SetOp(lnav, 1 << 6);
-      ll_wing_.FillOp(solid_mode_state_);
-      ul_wing_.FillOp(solid_mode_state_);
+      solid_mode_state_.SetOp(rnav);
+      lr_wing_.FillOp(solid_mode_state_.Op());
+      ur_wing_.FillOp(solid_mode_state_.Op());
+      solid_mode_state_.SetOp(lnav);
+      ll_wing_.FillOp(solid_mode_state_.Op());
+      ul_wing_.FillOp(solid_mode_state_.Op());
     }
 
-    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] =  spon_brt_;
-    pwm_val_[PWM_FUSE] = pwm_val_[PWM_WING] =  brt_;
+    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] = 0; // spon_brt_;
+    pwm_val_[PWM_FUSE] = pwm_val_[PWM_WING] = brt_;
     pwm_val_[PWM_TAIL] = (brt_ < 1 || brt_ > 3) ? brt_ >> 2 : 1;
   }
 
   void UpdateColorMode() {
-    RGBW rnav = led::wclr::black; // RGB(0, spon_brt_, 0)
+    RGBW rnav = RGBW(0, spon_brt_, 0);
     lr_tip_.Fill(rnav);
     ur_tip_.Fill(rnav);
-    elvr_.Fill(RGB(0, spon_brt_, 0));
+    elvr_.Fill(rnav);
 
-    RGBW lnav = led::wclr::black; // led::wclr::red;
+    RGBW lnav = RGBW(spon_brt_, 0, 0);
     ll_tip_.Fill(lnav);
     ul_tip_.Fill(lnav);
-    elvl_.Fill(RGB(spon_brt_, 0, 0));
+    elvl_.Fill(lnav);
 
-    color_mode_state_.SetOpScale(1 << 6);
-    color_mode_state_.SetOpOffset(0);
-    lr_wing_.FillOp(color_mode_state_);
-    ur_wing_.FillOp(color_mode_state_);
-    ll_wing_.FillOp(color_mode_state_);
-    ul_wing_.FillOp(color_mode_state_);
+    color_mode_state_.SetOp(1 << 6, 0);
+    lr_wing_.FillOp(color_mode_state_.Op());
+    ur_wing_.FillOp(color_mode_state_.Op());
+    ll_wing_.FillOp(color_mode_state_.Op());
+    ul_wing_.FillOp(color_mode_state_.Op());
 
-    color_mode_state_.SetOpScale(1 << 5);
-    fuse_.FillOp(color_mode_state_);
-    color_mode_state_.SetOpOffset(128);
-    rudr_.FillOp(color_mode_state_);
+    color_mode_state_.SetOp(1 << 6, 0);
+    fuse_.FillOp(color_mode_state_.Op());
+    color_mode_state_.SetOp(1 << 6, 128);
+    rudr_.FillOp(color_mode_state_.Op());
 
-    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] =  spon_brt_;
+    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] = 0; //  spon_brt_;
     pwm_val_[PWM_FUSE] = pwm_val_[PWM_WING] =  brt_;
     pwm_val_[PWM_TAIL] = (brt_ < 1 || brt_ > 3) ? brt_ >> 2 : 1;
   }
 
   void UpdatePulseMode() {
+    memset(led_data, 0, sizeof(led_data));
+
+    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] =  spon_brt_;
+    pwm_val_[PWM_FUSE] = pwm_val_[PWM_WING] =  brt_;
+    pwm_val_[PWM_TAIL] = (brt_ < 1 || brt_ > 3) ? brt_ >> 2 : 1;
   }
 
   // Called roughly every 32ms (32 fps)
   void Run(SBus* sbus) {
-    DBG_HI(APP, ("Update\n"));
+    // DBG_HI(APP, ("Update\n"));
     now_ = FastTimeMs();
     u8_t now_8 = now_ >> 8;  // 1/4 seconds
     // Update state if forced,  sbus settings change or 1/4 sec has elapsed.
-    if (now_8 != prev_update_) { //  || SBusUpdate(sbus) ) {
+    if (SBusUpdate(sbus) || now_8 != prev_update_) {
       prev_update_ = now_8;
       ApplyUpdatedState();
     }
@@ -484,7 +499,7 @@ int main(void)
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_HI(APP);
   DBG_LEVEL_MD(SBUS);
-  SBus sbus(&Serial::usart2, /*invert=*/true);
+  SBus sbus(&Serial::usart1, /*invert=*/true);
 
   PinId led_pin(LED_PIN);
   led_pin.SetOutput();

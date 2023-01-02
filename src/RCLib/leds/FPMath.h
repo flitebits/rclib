@@ -153,6 +153,8 @@ public:
   }
 
   u8_t GetOff() { return off_; }
+  u16_t GetSpeed() { return spd_; }
+
   void SetState(u16_t speed, u8_t off) {
     spd_ = speed;
     off_ = off;

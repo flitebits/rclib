@@ -41,7 +41,9 @@
     nop();                                      \
     nop();                                      \
     nop();                                      \
+    nop();                                      \
     port->OUTCLR = mask;                        \
+    nop();                                      \
     nop();                                      \
     nop();                                      \
     nop();                                      \
@@ -60,6 +62,8 @@
 
 #define SEND_1(port, mask, skip) do {           \
     port->OUTSET = mask;                        \
+    nop();                                      \
+    nop();                                      \
     nop();                                      \
     nop();                                      \
     nop();                                      \

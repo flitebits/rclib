@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include "SBus.h"
@@ -24,12 +24,12 @@ SBus::SBus(Serial* serial, bool invert) :
   serial_(serial),
   idx_(0), failSafe_(false), bytes_read_(0), frames_(0) {
   serial_->Setup(100000, 8, Serial::PARITY_EVEN, 2, invert,
-		 /*use_alt_pins=*/false, Serial::MODE_RX);
+                 /*use_alt_pins=*/false, Serial::MODE_RX);
   serial_->SetBuffered(true);
   DBG_LO(SBUS, ("SBus: Init\n"));
 }
 
-void SBus::Dump() {
+void SBus::Dump() const {
   DBG_LO(SBUS, ("SBus: %d/%d-%d", GetDataFrames(), GetBytesRead(), sbus_err));
   for (int i=0; i<16; ++i) {
     DBG_LO(SBUS, (" 0x%x", GetChannel(i)));
@@ -75,7 +75,7 @@ bool SBus::Run() {
     if (info.err) {  // error reading serial data, so don't trust anything.
       DBG_MD(SBUS, ("SBus serial read Error: %d\n", info.err));
       memset(data_, 0xFF, sizeof(data_));
-	  sbus_err++;
+      sbus_err++;
       continue;
     }
     idx_ = (idx_ + 1) & 0x1F;
