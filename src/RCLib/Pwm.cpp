@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include "Pwm.h"
@@ -60,6 +60,10 @@ void Pwm::Enable(u8_t idx) {
   u8_t bit = GetIdxEnBit(idx);
   port_ptr_->DIRSET = (1 << idx);
   TCA0.SPLIT.CTRLB = (TCA0.SPLIT.CTRLB | (1 << bit));
+}
+void Pwm::Enable(u8_t idx, u8_t val) {
+  Set(idx, val);
+  Enable(idx);
 }
 
 void Pwm::Disable(u8_t idx){

@@ -69,14 +69,17 @@ public:
   void Set(u8_t idx, const P& pix) {
         At(idx) = pix;
   }
-  // Fills all the pixels in the span to to specified color.
+  // Sets all the pixels to the specified color.
   void Fill(const P& pix) {
     P* ptr = ptr_;
     P* end = ptr_ + len_;
     while (ptr != end) *(ptr++) = pix;
   }
-
-  // Fills all the pixels in the span to to specified color.
+  // Sets all the pixels from idx to the end to the specified color
+  void Fill(const P& pix, u8_t idx) {
+    Fill(pix, idx, len_ - idx);
+  }
+  // Sets all the pixels in the span to the specified color.
   void Fill(const P& pix, u8_t idx, u8_t len) {
     P* ptr = reverse_ ? &At(idx + len) : &At(idx);
     P* end = ptr + len;

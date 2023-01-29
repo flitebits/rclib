@@ -41,6 +41,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "HK_Albatross", "HK_Albatros
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "PolarisXL", "PolarisXL\PolarisXL.cppproj", "{0CC57D08-4451-48C0-8FBF-F9925F16A741}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_Arrow", "FT_Arrow\FT_Arrow.cppproj", "{F8CCB815-49C8-4D54-96F4-8082319D3370}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -112,6 +114,10 @@ Global
 		{0CC57D08-4451-48C0-8FBF-F9925F16A741}.Debug|AVR.Build.0 = Debug|AVR
 		{0CC57D08-4451-48C0-8FBF-F9925F16A741}.Release|AVR.ActiveCfg = Release|AVR
 		{0CC57D08-4451-48C0-8FBF-F9925F16A741}.Release|AVR.Build.0 = Release|AVR
+		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Debug|AVR.ActiveCfg = Debug|AVR
+		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Debug|AVR.Build.0 = Debug|AVR
+		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Release|AVR.ActiveCfg = Release|AVR
+		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
