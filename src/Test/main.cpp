@@ -24,7 +24,9 @@
 #include "leds/Rgb.h"
 #include "Pins.h"
 #include "Pwm.h"
+#include "Pca9685.h"
 #include "Serial.h"
+#include "Twi.h"
 #include "WS2812.h"
 #include "DShotASM.h"
 
@@ -117,6 +119,8 @@ int main(void) {
   PinId led_pin(LED_PIN);
   led_pin.SetOutput();
 
+  Twi::twi.Setup(Twi::PINS_DEF, Twi::I2C_1M);
+
   // Yes I know with 2x2 you could avoid key-scan and just wire each
   // seperately, but I am using a purchased key-scan board.
   PinIdEnum row_pins[2] = {PIN_C7, PIN_C6};
@@ -134,8 +138,12 @@ int main(void) {
   u8_t phase = 0;
   UpdateLeds(false, phase);
 
+  Pca9685 pwm16(0x80, 16);
+
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
+
+  pwm16.Init(/*totem=*/true);
 
   u8_t update_0 = 0;
   u8_t update_3 = 0;
@@ -144,6 +152,8 @@ int main(void) {
   u8_t update_8 = 0;  // ~4 updates/sec
 
   u8_t pwm_state = 0;
+  i16_t cnt = 4096;
+  i8_t add = -16;
   while (1) {
     const i16_t now = FastMs();
 
@@ -168,7 +178,16 @@ int main(void) {
     update_6 = now_6;
 
     UpdatePwm(pwm, pwm_state, phase);
-    DBG_MD(APP, ("Keys: 0x%08lx\n", keys.State()));
+    // DBG_MD(APP, ("Keys: 0x%08lx\n", keys.State()));
+    pwm16.SetLed(cnt, 1);
+    pwm16.Write();
+    /*
+    u8_t led0_seq[5] = {0x0A, 0x00, 0x00, 0x00, 0x00};
+    led0_seq[3] = cnt;
+    Twi::twi.MasterSendBytes(0x80, led0_seq, sizeof(led0_seq));
+    */
+    cnt += add;
+    if (cnt < -add || cnt > (4096 - add)) add = -add;
 
     ++phase;
     u8_t test_mode = (FastSecs() >> 2) & 0x3; // change mode every 2 sec

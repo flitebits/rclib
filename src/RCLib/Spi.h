@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include "IntTypes.h"
@@ -18,9 +18,10 @@ class Spi {
   static Spi spi;
 
   enum SpiPinOpt {
-	PINS_PA47,  // default
-	PINS_PC03,
-	PINS_PE03
+        PINS_PA47,  // default
+        PINS_PC03,
+        PINS_PE03,
+        PINS_NONE,
   };
   void Setup(SpiPinOpt pins, u32_t target_clk);
   // Will try and get SPI Clock 'near' target_clk by adjsting SPI
@@ -52,7 +53,7 @@ protected:
   void Sk6812UpdateSetup(const u8_t *data, int len, u8_t level);
   // Populate long_data_ with bits from val
   void Sk6812StartByte(u8_t val);
-  
+
   volatile char state_;
   const u8_t* data_ptr_;
   int len_;

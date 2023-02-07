@@ -248,6 +248,12 @@
     <Compile Include="leds\Rgb.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="Pca9685.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Pca9685.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="Pins.cpp">
       <SubType>compile</SubType>
     </Compile>
@@ -294,6 +300,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="SportSensor.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Twi.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Twi.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="Util.cpp">
