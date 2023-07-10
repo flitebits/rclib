@@ -43,6 +43,12 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "PolarisXL", "PolarisXL\Pola
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_Arrow", "FT_Arrow\FT_Arrow.cppproj", "{F8CCB815-49C8-4D54-96F4-8082319D3370}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AD3B0FD5-52F6-42C1-8E1D-8A944A376F24}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_Sportster", "FT_Sportster\FT_Sportster.cppproj", "{D616C4D4-AE1A-4853-ADA7-EFA36718B5AA}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "DaddyO", "DaddyO\DaddyO.cppproj", "{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -118,6 +124,14 @@ Global
 		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Debug|AVR.Build.0 = Debug|AVR
 		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Release|AVR.ActiveCfg = Release|AVR
 		{F8CCB815-49C8-4D54-96F4-8082319D3370}.Release|AVR.Build.0 = Release|AVR
+		{D616C4D4-AE1A-4853-ADA7-EFA36718B5AA}.Debug|AVR.ActiveCfg = Debug|AVR
+		{D616C4D4-AE1A-4853-ADA7-EFA36718B5AA}.Debug|AVR.Build.0 = Debug|AVR
+		{D616C4D4-AE1A-4853-ADA7-EFA36718B5AA}.Release|AVR.ActiveCfg = Release|AVR
+		{D616C4D4-AE1A-4853-ADA7-EFA36718B5AA}.Release|AVR.Build.0 = Release|AVR
+		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Debug|AVR.ActiveCfg = Debug|AVR
+		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Debug|AVR.Build.0 = Debug|AVR
+		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Release|AVR.ActiveCfg = Release|AVR
+		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

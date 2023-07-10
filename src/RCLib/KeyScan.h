@@ -9,8 +9,8 @@
 #include "IntTypes.h"
 #include "Pins.h"
 
-#ifndef KEY_SCAN_H_
-#define KEY_SCAN_H_
+#ifndef _KEY_SCAN_H_
+#define _KEY_SCAN_H_
 
 template <int rows, int cols>
 class KeyScan {

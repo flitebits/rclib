@@ -81,7 +81,7 @@ public:
   }
   // Sets all the pixels in the span to the specified color.
   void Fill(const P& pix, u8_t idx, u8_t len) {
-    P* ptr = reverse_ ? &At(idx + len) : &At(idx);
+    P* ptr = reverse_ ? &At(idx + len - 1) : &At(idx);
     P* end = ptr + len;
     while (ptr != end) *(ptr++) = pix;
   }

@@ -28,6 +28,7 @@ class Pca9685 {
   // Check if this works or if you get flashing depending on cycle state when updating...
   void LedSequential(bool sequential);
 
+  static u16_t Apparent2Pwm(u8_t apparent);
  private:
   const u8_t i2c_addr_;
   u8_t start_led_idx_;

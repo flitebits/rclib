@@ -151,21 +151,32 @@ int main(void) {
   u8_t update_6 = 0;  // ~16 updates/sec
   u8_t update_8 = 0;  // ~4 updates/sec
 
+  for (int i = 1; i < 255; ++i) {
+    u16_t v0 = Pca9685::Apparent2Pwm(i - 1);
+    u16_t v1 = Pca9685::Apparent2Pwm(i);
+    DBG_MD(APP, ("2Pwm[%3d]: %4d (+%3d)\n", i, v1, (v1 - v0)));
+  }
+
   u8_t pwm_state = 0;
-  i16_t cnt = 4096;
-  i8_t add = -16;
+  i16_t cnt = 255;
+  i8_t add = -1;
   while (1) {
     const i16_t now = FastMs();
 
     // 1024 updates/sec
     const u8_t now_0 = now;
     if (now_0 == update_0) continue;
-    keys.Scan();
+   // keys.Scan();
 
     // 128 updates/sec
     const u8_t now_3 = now >> 3;
     if (now_3 == update_3) continue;
     update_3 = now_3;
+
+    pwm16.SetLeds(Pca9685::Apparent2Pwm(cnt), 0, 3);
+    pwm16.Write();
+    cnt += add;
+    if (cnt ==0 || cnt == 255) add = -add;
 
     // 64 updates/sec
     const u8_t now_4 = now >> 4;
@@ -179,15 +190,11 @@ int main(void) {
 
     UpdatePwm(pwm, pwm_state, phase);
     // DBG_MD(APP, ("Keys: 0x%08lx\n", keys.State()));
-    pwm16.SetLed(cnt, 1);
-    pwm16.Write();
     /*
     u8_t led0_seq[5] = {0x0A, 0x00, 0x00, 0x00, 0x00};
     led0_seq[3] = cnt;
     Twi::twi.MasterSendBytes(0x80, led0_seq, sizeof(led0_seq));
     */
-    cnt += add;
-    if (cnt < -add || cnt > (4096 - add)) add = -add;
 
     ++phase;
     u8_t test_mode = (FastSecs() >> 2) & 0x3; // change mode every 2 sec
