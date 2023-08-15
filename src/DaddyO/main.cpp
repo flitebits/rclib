@@ -25,9 +25,11 @@
 
 #include "Button.h"
 #include "Pins.h"
+#include "Pca9685.h"
 #include "Pwm.h"
 #include "SBus.h"
 #include "Serial.h"
+#include "Twi.h"
 #include "WS2812.h"
 
 using led::HSV;
@@ -394,7 +396,7 @@ public:
 
   void UpdateSolidMode() {
     u8_t submode = Submode();
-    const bool blink = (submode != 1) &&
+    // const bool blink = (submode != 1) &&
     RGBW rnav(0, spon_brt_, 0);
     RGBW lnav(spon_brt_, 0, 0);
 
@@ -589,12 +591,16 @@ int main(void)
   Pwm pwm(PORT_D, 400);
   Lights lights(LED_PIN, &pwm);
 
+  Twi::twi.Setup(Twi::PINS_DEF, Twi::I2C_1M);
+  Pca9685 pwm16(0x80, 16); // Uses Twi
+
   sei();
   DBG_MD(APP, ("DaddyO: Run\n"));
 
   memset(led_data, 0, sizeof(led_data));
   SendWS2812(LED_PIN, led_data, sizeof(led_data), 0xFF);
 
+  pwm16.Init(/*totem=*/true);
 
   CtrlState state;
   u8_t blink_phase = 0;
@@ -605,6 +611,9 @@ int main(void)
   u8_t update_4s = 0xFF;
   bool use_sbus = 0;
   bool recent_sbus = 0;
+
+  u8_t pwm_idx = 0;
+
   while (1) {
     u16_t now = FastMs();
     if (sbus.Run()) {
@@ -629,6 +638,15 @@ int main(void)
     blink_phase = (blink_phase + 1) & 0x07;
     // If it's been more than 1/4 sec since we last got
     // sbus, then assume we aren't getting sbus anymore.
+    pwm16.SetLed(0, pwm_idx);
+    pwm16.SetLed(0, pwm_idx + 4);
+    pwm16.SetLed(0, pwm_idx + 8);
+    pwm_idx = (pwm_idx + 1) & 0x03;
+    pwm16.SetLed(1<<10, pwm_idx);
+    pwm16.SetLed(1<<10, pwm_idx + 4);
+    pwm16.SetLed(1<<10, pwm_idx + 8);
+    pwm16.Write();
+
     if (!recent_sbus) use_sbus = 0;
     recent_sbus = 0;
 

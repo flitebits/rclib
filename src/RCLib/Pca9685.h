@@ -6,14 +6,15 @@
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 
+#include <string.h>
 #include "IntTypes.h"
 
 class Pca9685 {
  public:
- Pca9685(u8_t i2c_addr, u8_t num_led) :
-  i2c_addr_(i2c_addr), start_led_idx_(0), num_led_(num_led) { }
- Pca9685(u8_t i2c_addr, u8_t start_led_idx, u8_t num_led) :
-  i2c_addr_(i2c_addr), start_led_idx_(start_led_idx), num_led_(num_led) { }
+ Pca9685(u8_t i2c_addr, u8_t num_led)
+   : i2c_addr_(i2c_addr), start_led_idx_(0), num_led_(num_led) { }
+ Pca9685(u8_t i2c_addr, u8_t start_led_idx, u8_t num_led)
+   : i2c_addr_(i2c_addr), start_led_idx_(start_led_idx), num_led_(num_led) { }
 
   // When called will configure the PCA9685 control registers for later updates.
   // If totem is true then

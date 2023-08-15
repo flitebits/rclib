@@ -33,6 +33,7 @@ u16_t Pca9685::Apparent2Pwm(u8_t apparent) {
 }
 
 void Pca9685::Init(bool totem) {
+  memset(leds_, 0, sizeof(leds_));
   u8_t idx = 0;
   cmd_buf_[idx++] = 0x00; // Register: zero (MODE1)
   // MODE1: No ext clk, set register auto inc, disable subcall & all call adr
