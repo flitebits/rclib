@@ -49,6 +49,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FT_Sportster", "FT_Sportste
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "DaddyO", "DaddyO\DaddyO.cppproj", "{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Mini7", "Mini7\Mini7.cppproj", "{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -132,6 +134,10 @@ Global
 		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Debug|AVR.Build.0 = Debug|AVR
 		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Release|AVR.ActiveCfg = Release|AVR
 		{43B84C1C-D454-4FD1-9F1B-2E81FBCD7456}.Release|AVR.Build.0 = Release|AVR
+		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Debug|AVR.ActiveCfg = Debug|AVR
+		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Debug|AVR.Build.0 = Debug|AVR
+		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Release|AVR.ActiveCfg = Release|AVR
+		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

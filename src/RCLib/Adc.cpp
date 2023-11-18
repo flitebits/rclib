@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include "Adc.h"
@@ -22,7 +22,7 @@ Adc::Adc(VRefSrc src){
     p_scale++;
     pclk = pclk >> 1;
   }
-  
+
   u8_t ref_sel = ADC_REFSEL_INTREF_gc;
   switch (src) {
   case VREF_VDD: ref_sel = ADC_REFSEL_VDDREF_gc; break;
@@ -30,7 +30,7 @@ Adc::Adc(VRefSrc src){
   case VREF_055:
     VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_0V55_gc;
     break;
-  case VREF_11: 
+  case VREF_11:
     VREF.CTRLA = (VREF.CTRLA & ~VREF_ADC0REFSEL_gm) | VREF_ADC0REFSEL_1V1_gc;
     break;
   case VREF_15:
@@ -48,11 +48,11 @@ Adc::Adc(VRefSrc src){
   ADC0.CTRLB = ADC_SAMPNUM_ACC1_gc;  // No multi-sample
   ADC0.CTRLC = ((1 << ADC_SAMPCAP_bp)  |  // Reduce Sampling capacitance
                 ref_sel |  // select Voltage reference
-		p_scale);
-  ADC0.CTRLD = 0;  // No added Sample delays.                
+                p_scale);
+  ADC0.CTRLD = 0;  // No added Sample delays.
   ADC0.CTRLE = 0;  // No windowed mode.
   // No added sample cycles (needed for high impedence signals).
-  ADC0.SAMPCTRL = 0;  
+  ADC0.SAMPCTRL = 0;
   ADC0.CTRLA = ADC0.CTRLA | (1 << ADC_ENABLE_bp);  // Enable ADC.
 }
 
@@ -73,7 +73,7 @@ int Adc::FinishRead() {
   return ADC0.RES;
 }
 
-int Adc::ConinueRead() {
+int Adc::ContinueRead() {
   int result = FinishRead();
   ADC0.COMMAND = 1 << ADC_STCONV_bp;  // Start ADC conversion
   return result;

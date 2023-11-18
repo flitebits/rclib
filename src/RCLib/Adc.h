@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #ifndef _ADC_
@@ -14,15 +14,15 @@
 class Adc {
  public:
   enum VRefSrc {
-	  VREF_055,  // 0.55V
-	  VREF_11,   // 1.1V
-	  VREF_15,   // 1.5V
-	  VREF_25,   // 2.5V
-	  VREF_43,   // 4.3V
-	  VREF_VREFA, // VREFA pin
-	  VREF_VDD,  // Chip input Voltage
+          VREF_055,  // 0.55V
+          VREF_11,   // 1.1V
+          VREF_15,   // 1.5V
+          VREF_25,   // 2.5V
+          VREF_43,   // 4.3V
+          VREF_VREFA, // VREFA pin
+          VREF_VDD,  // Chip input Voltage
   };
-	  
+
   // Configures Adc for just under 1Mhz sample, 10bit, Vrefa external
   // ref, and enables Adc unit.
   Adc(VRefSrc src = VREF_VDD);
@@ -42,7 +42,7 @@ class Adc {
   int FinishRead();
   // Returns value from most recent StartRead call, and starts a new
   // conversion on the same pin.
-  int ConinueRead();
+  int ContinueRead();
 
   // Configures the given pin for analog reading (sets it to input only
   // and sets the assocaited PINCTRL register to all zeros).

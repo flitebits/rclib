@@ -90,11 +90,19 @@ public:
   // and the associated pixel for every pixel in the span.
   template <class O>
   void FillOp(const O& op) {
-    u16_t step = (u16_t(255) << 8) / len_;
+    FillOp(op, 0, len_);
+  }
+  template <class O>
+  void FillOp(const O& op, u8_t idx) {
+    FillOp(op, idx, len_ - idx);
+  }
+  template <class O>
+    void FillOp(const O& op, u8_t idx, u8_t len) {
+    u16_t step = (u16_t(255) << 8) / len;
     // Use step/2 so it points at the midpoint of the span the pixel covers.
     u16_t frac = step >> 1;
     for (u8_t i = 0; i < len_; ++i, frac += step) {
-      P& pix = At(i);
+      P& pix = At(idx + i);
       op(u8_t(frac >> 8), &pix);
     }
   }

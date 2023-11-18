@@ -85,7 +85,7 @@ namespace {
   }
 }  // namespace
 
-ISR(TWI0_INT_vect) {
+ISR(__vector_TWI0_INT_vect) {
   Spi::spi.step();
 }
 
@@ -259,8 +259,11 @@ void Spi::Setup(SpiPinOpt pins, u32_t target_clk) {
 }
 
 void Spi::SetupAPA102(SpiPinOpt pins, u32_t target_clk) {
-  led_mode_ = SPI_LED_MODE_APA102;
   switch (pins) {
+  case PINS_NONE:
+    led_mode_ = SPI_LED_MODE_NONE;
+    PORTMUX.TWISPIROUTEA = PORTMUX_SPI0_NONE_gc;
+    return;
   case PINS_PA47:
     PORTA.DIRSET = 0b01010000;  // Only need MOSI & SCLK for APA102
     PORTMUX.TWISPIROUTEA = (PORTMUX_SPI0_DEFAULT_gc);
@@ -275,6 +278,7 @@ void Spi::SetupAPA102(SpiPinOpt pins, u32_t target_clk) {
     break;
   }
 
+  led_mode_ = SPI_LED_MODE_APA102;
   SetClock(target_clk, ((0 << SPI_DORD_bp) |    // MSB
                         (1 << SPI_MASTER_bp))); // SPI Master mode
 
@@ -290,8 +294,11 @@ void Spi::SetupAPA102(SpiPinOpt pins, u32_t target_clk) {
 }
 
 void Spi::SetupSK6812(SpiPinOpt pins) {
-  led_mode_ = SPI_LED_MODE_SK6812;
   switch (pins) {
+  case PINS_NONE:
+    led_mode_ = SPI_LED_MODE_NONE;
+    PORTMUX.TWISPIROUTEA = PORTMUX_SPI0_NONE_gc;
+    return;
   case PINS_PA47:
     PORTA.DIRSET = 0b00010000;  // Only need MOSI for SK6812
     PORTMUX.TWISPIROUTEA = (PORTMUX_SPI0_DEFAULT_gc);
@@ -305,6 +312,7 @@ void Spi::SetupSK6812(SpiPinOpt pins) {
     PORTMUX.TWISPIROUTEA = (PORTMUX_SPI0_ALT2_gc);
     break;
   }
+  led_mode_ = SPI_LED_MODE_SK6812;
 
   // We will get the clock to ~2.5Mhz which is 400ns/sample
   SetClock(2500000, ((0 << SPI_DORD_bp) |    // MSB

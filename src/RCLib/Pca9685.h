@@ -21,15 +21,18 @@ class Pca9685 {
   void Init(bool totem);
   void Write();
 
-  // Set duty cycle of led, 0 -> off, 4096 full on.
+  // Set duty cycle of led; 0 -> off, 4096/1<<12 -> full on.
+  u16_t& led(u8_t idx) { return leds_[idx & 0xF]; }
   void SetLed(u16_t val, u8_t idx);
   void SetLeds(u16_t val, u8_t idx, u8_t len);
 
-  // If true then the start time of every led will be the end time of the prior led.
-  // Check if this works or if you get flashing depending on cycle state when updating...
+  // If true then the start time of every led will be the end time of the prior
+  // led.  Check if this works or if you get flashing depending on cycle state
+  // when updating...
   void LedSequential(bool sequential);
 
   static u16_t Apparent2Pwm(u8_t apparent);
+
  private:
   const u8_t i2c_addr_;
   u8_t start_led_idx_;

@@ -539,15 +539,13 @@ int main(void)
   SendWS2812(LED_PIN, led_data, sizeof(led_data), 0xFF);
 
   u8_t update_5 = 0;
+  u8_t update_5s = 0;
   u8_t update_8 = 0;
   CtrlState state; // (/*mode=*/MODE_SOLID | MODE_S2, /*level=*/1, /*brt=*/1024, /*thr=*/512);
 
-  bool got_sbus = false;
-  u8_t update_5s = 0;
   while (1) {
     u16_t now = FastMs();
     if (sbus.Run()) {
-      got_sbus = true;
       state.Set(&sbus);  // Could call lights.Run if state changed...
     }
 

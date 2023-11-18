@@ -42,19 +42,33 @@ using led::sin8;
 using led::VariableSaw;
 
 #if defined(__AVR_ATmega4809__)
-#define LED_PIN (PIN_F0)
+#define RGB_LED_PIN (PIN_F0)
 #endif
 
-#define LIGHT_LEVEL_CH    (4)  // Turns lights off/Low/Hi
-#define LIGHT_MODE_CH     (5)  // Sets Lights Mode (solid, spin, glow)
-#define LIGHT_SUBMODE_CH  (6)  // Sets mode sub mode (color range, etc)
-#define LIGHT_BRIGHT_CH   (7)  // Adjust leading edge light brightness.
-#define LIGHT_THROTTLE_CH (8)  // Adjusts lights speed
+#define LIGHT_LEVEL_CH    (5)  // Turns lights off/Low/Hi
+#define LIGHT_MODE_CH     (6)  // Sets Lights Mode (solid, spin, glow)
+#define LIGHT_SUBMODE_CH  (7)  // Sets mode sub mode (color range, etc)
+#define LIGHT_BRIGHT_CH   (8)  // Adjust leading edge light brightness.
+#define LIGHT_THROTTLE_CH (9)  // Adjusts lights speed
 
-#define NUM_PWM (6)
+// PWM LEDS: LEDS 0-2 body, 3 cockpit, 4-7 tail, 89 = wing
+enum PwmCh {
+            PWM_BODY_F = 0,
+            PWM_BODY_M = 1,
+            PWM_BODY_L = 2,
+            PWM_COCKPIT = 3,
+            PWM_RUDDER = 4,
+            PWM_ELE_W = 5,
+            PWM_ELE_B = 6,
+            PWM_ELE_N = 7,
+            PWM_WING_L = 8,
+            PWM_WING_R = 9,
+            PWM_CNT = 10,
+};
 
-#define WNGB_CNT (23) // Each wing half
-#define WNGF_CNT (28) // Each wing half
+
+#define WNGB_CNT (23) // Each wing half (7x 3led, 1x 2led)
+#define WNGF_CNT (28) // Each wing half ( 5x 4led, 2x 3led, 1x 2led)
 
 #define RGBW_CNT (2 * (WNGB_CNT + WNGF_CNT))
 #define RGB_CNT  (0)
@@ -63,21 +77,15 @@ u8_t led_data[RGBW_CNT * 4 + RGB_CNT * 3];
 
 u8_t max(u8_t a, u8_t b) { return a > b ? a : b; }
 
-enum PwmCh {
-            PWM_RBDY = 1,
-            PWM_LBDY = 2,
-            PWM_TAIL = 3,
-            PWM_RTIP = 4,
-            PWM_LTIP = 5,
-};
-
 enum Modes {
             MODE_S0 = 0,
             MODE_S1 = 1,
             MODE_S2 = 2,
+            MODE_S_MSK = 3,
             MODE_SOLID = 0 << 2,
             MODE_COLOR = 1 << 2,
-            MODE_PULSE = 2 << 2
+            MODE_PULSE = 2 << 2,
+            MODE_MSK   = 3 << 2,
 };
 
 Modes IncMode(int m) {
@@ -137,18 +145,15 @@ struct CtrlState {
   }
 };
 
-class LogSinOp {
+class FadeLogSinOp {
 public:
-  LogSinOp() : scale_(1<<6), offset_(0) { }
-  LogSinOp(RGBW color, u8_t scale = (1<<6), u8_t offset = 0)
-    :color_(color), scale_(scale), offset_(offset) { }
-  void Set(const RGBW& color, u8_t scale, u8_t offset) {
-    color_ = color;
+  FadeLogSinOp() : scale_(1<<6), offset_(0) { }
+  FadeLogSinOp(u8_t scale, u8_t offset = 0)
+    :scale_(scale), offset_(offset) { }
+  void Set(u8_t scale, u8_t offset) {
     scale_ = scale;
     offset_ = offset;
   }
-  void SetColor(const RGBW& color) { color_ = color; }
-  RGBW GetColor() const { return color_; }
   u8_t GetOffset() const { return offset_; }
   void SetOffset(u8_t offset) { offset_ = offset; }
   // Scale is 2.6 FP number
@@ -157,14 +162,32 @@ public:
 
   void operator() (u8_t frac, RGBW* pix) const {
     frac = (u16_t(frac) * scale_) >> 6;
-    *pix = color_;
     Fade(pix, Logify(sin8(frac + offset_ )));
   }
 
-  RGBW color_;
   u8_t scale_;
   u8_t offset_;
 };
+
+class ClrLogSinOp : public FadeLogSinOp {
+public:
+  ClrLogSinOp() { }
+  ClrLogSinOp(RGBW color, u8_t scale = (1<<6), u8_t offset = 0)
+    : FadeLogSinOp(scale, offset), color_(color) { }
+  void Set(const RGBW& color, u8_t scale, u8_t offset) {
+    color_ = color;
+    this->FadeLogSinOp::Set(scale, offset);
+  }
+  void SetColor(const RGBW& color) { color_ = color; }
+  RGBW GetColor() const { return color_; }
+  void operator() (u8_t frac, RGBW* pix) const {
+    *pix = color_;
+    this->FadeLogSinOp::operator()(frac, pix);
+  }
+
+  RGBW color_;
+};
+
 
 class SolidModeState {
 public:
@@ -193,11 +216,11 @@ public:
       blink_ = false;
     }
   }
-  const LogSinOp& Op() const { return op_; }
+  const FadeLogSinOp& Op() const { return op_; }
 
   // Scale is 2.6 FP number
-  void SetOp(const RGBW& color) {
-    op_.Set(color, 1<<6, wave_phase_);
+  void SetOp() {
+    op_.Set(1<<6, wave_phase_);
   }
 
 protected:
@@ -208,10 +231,10 @@ protected:
   bool blink_;
   RGBW color_;
   VariableSaw wave_saw_;
-  LogSinOp op_;
+  FadeLogSinOp op_;
 };
 
-class ColorModeState : public LogSinOp{
+class ColorModeState : public ClrLogSinOp{
 public:
   ColorModeState()
     : submode_(0), brt_(0), pulse_phase_(0) { }
@@ -265,7 +288,6 @@ protected:
   VariableSaw color_saw_;
   VariableSaw pulse_saw_;
   u8_t pulse_phase_;
-  LogSinOp op_;
 };
 
 class PulseModeState {
@@ -296,15 +318,11 @@ protected:
 
 class Lights {
 public:
-  Lights(PinId led_pin, Pwm* pwm) :
+  Lights(PinId rgb_led_pin, Pca9685* pwm) :
     now_(0), prev_update_(0),
-    led_pin_(led_pin), pwm_(pwm),
+    led_pin_(rgb_led_pin), pwm_(pwm),
     mode_(0), brt_(0), spon_brt_(0),
     state_change_(CtrlState::CHG_NONE) {
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_val_[i] = 0;
-      pwm_->Enable(i, pwm_val_[i]);
-    }
 
     void* ptr = led_data;
     ptr = rwngb_.SetSpan(ptr, WNGB_CNT, /*reverse=*/false); // core to tip
@@ -326,14 +344,9 @@ public:
   void PushLeds() {
     SendWS2812(led_pin_, led_data, sizeof(led_data), 0xFF);
   }
-  void PushPwm() {
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_->Set(i, pwm_val_[i]);
-    }
-  }
   void Push() {
     PushLeds();
-    PushPwm();
+    pwm_->Write();
   }
 
   // Returns true if the state_ was changed.
@@ -354,11 +367,31 @@ public:
 
     switch (lvl) {
     case 0: brt_ = spon_brt_ = 0; break;
-    case 1: spon_brt_ = 0x40; brt_ = brt_ >> 3; break;
+    case 1: spon_brt_ = 0x40; brt_ = brt_ >> 2; break;
     case 2: spon_brt_ = 0xFF; break;
     }
 
     DBG_HI(APP, ("Update Brt: %d Spn: %d lvl: %d\n", brt_, spon_brt_, lvl));
+  }
+
+  void SetFlagMode(u8_t brt) {
+    RGBW wht(brt);
+    RGBW blu(0,0,brt);
+    RGBW red(brt,0,0);
+    for (u8_t i = 0; i < 20;) {
+      rwngf_.At(i) = lwngf_.At(i)= wht; ++i;
+      rwngf_.At(i) = lwngf_.At(i)= wht; ++i;
+      rwngf_.At(i) = lwngf_.At(i)= blu; ++i;
+      rwngf_.At(i) = lwngf_.At(i)= blu; ++i;
+    }
+    rwngf_.Fill(wht, 20, 3);
+    lwngf_.Fill(wht, 20, 3);
+    for (u8_t i = 0; i < 18; i += 6) {
+      rwngb_.Fill(red, i, 3);
+      lwngb_.Fill(red, i, 3);
+      rwngb_.Fill(wht, i + 3, 3);
+      lwngb_.Fill(wht, i + 3, 3);
+    }
   }
 
   void ApplyUpdatedState() {
@@ -370,23 +403,41 @@ public:
     color_mode_state_.UpdateState(Submode(), state_.thr, spon_brt_);
     pulse_mode_state_.UpdateState(Submode(), state_.thr, spon_brt_);
   }
+  void PwmSetBody(u8_t apparent, u8_t nav_brt) {
+    u16_t val = pwm_->Apparent2Pwm(apparent);
+    pwm_->led(PWM_BODY_F) = pwm_->led(PWM_BODY_M) = pwm_->led(PWM_BODY_L) = val;
+    pwm_->led(PWM_COCKPIT) = pwm_->led(PWM_RUDDER) = pwm_->led(PWM_ELE_B) = val;
+    if (nav_brt == 0) {
+      pwm_->led(PWM_ELE_N) = 0;
+      pwm_->led(PWM_ELE_W) = val;
+    } else {
+      u16_t nval = pwm_->Apparent2Pwm(nav_brt);
+      pwm_->led(PWM_ELE_N) = nval;
+      pwm_->led(PWM_ELE_W) = 0;
+    }
+  }
+
+  void PwmSetWing(u8_t apparent) {
+    u16_t val = pwm_->Apparent2Pwm(apparent);
+    pwm_->led(PWM_WING_L) = pwm_->led(PWM_WING_R) = val;
+  }
 
   void Update(u16_t now) {
     // DBG_HI(APP, ("Lights::Update now: %u\n", now));
-    pwm_val_[4] = spon_brt_;
-    pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] = pwm_val_[PWM_TAIL] = spon_brt_;
+    // pwm_val_[4] = spon_brt_;
+    // pwm_val_[PWM_LTIP] = pwm_val_[PWM_RTIP] = pwm_val_[PWM_TAIL] = spon_brt_;
     switch (Mode()) {
-    case MODE_SOLID:
-      pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = brt_;
+    case 0:  // MODE_SOLID
+      // pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = brt_;
       solid_mode_state_.Update(now);
       UpdateSolidMode();
       break;
-    case MODE_COLOR:
-      pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = brt_;
+    case 1:  // MODE_COLOR
+      // pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = brt_;
       color_mode_state_.Update(now);
       UpdateColorMode();
       break;
-    case MODE_PULSE:
+    case 2:  // MODE_PULSE
       pulse_mode_state_.Update(now);
       UpdatePulseMode();
       break;
@@ -396,69 +447,77 @@ public:
 
   void UpdateSolidMode() {
     u8_t submode = Submode();
-    // const bool blink = (submode != 1) &&
     RGBW rnav(0, spon_brt_, 0);
     RGBW lnav(spon_brt_, 0, 0);
+    PwmSetWing(spon_brt_);
+
 
     RGBW wht = RGBW(brt_);
+
     switch(submode) {
     case 0:
-      lwngb_.Fill(wht);
-      lwngf_.Fill(wht);
-      rwngf_.Fill(wht);
-      rwngb_.Fill(wht);
+      PwmSetBody(brt_, spon_brt_);
+      SetFlagMode(brt_);
+      lwngb_.Fill(lnav, 18);
+      lwngf_.Fill(lnav, 23);
+      rwngb_.Fill(rnav, 18);
+      rwngf_.Fill(rnav, 23);
       break;
-    case 1:
-      lwngb_.Fill(wht, 0, 15);
-      lwngb_.Fill(lnav, 15);
-      lwngf_.Fill(wht, 0, 20);
-      lwngf_.Fill(lnav, 20);
 
-      rwngf_.Fill(wht, 0, 15);
-      rwngf_.Fill(rnav, 15);
-      rwngb_.Fill(wht, 0, 20);
-      rwngb_.Fill(rnav, 20);
+    case 1:
+      PwmSetBody(brt_, 0);
+      SetFlagMode(brt_);
+      lwngb_.Fill(wht, 18);
+      lwngf_.Fill(wht, 23);
+      rwngb_.Fill(wht, 18);
+      rwngf_.Fill(wht, 23);
       break;
     case 2:
-      if (solid_mode_state_.blink()) {
-        lnav.wht = spon_brt_;
-        rnav.wht = spon_brt_;
-      }
-      solid_mode_state_.SetOp(lnav);
+      PwmSetBody(brt_, spon_brt_);
+      SetFlagMode(255);
+      solid_mode_state_.SetOp();
       lwngb_.FillOp(solid_mode_state_.Op());
       lwngf_.FillOp(solid_mode_state_.Op());
-      solid_mode_state_.SetOp(rnav);
       rwngb_.FillOp(solid_mode_state_.Op());
       rwngf_.FillOp(solid_mode_state_.Op());
     }
   }
 
   void UpdateColorMode() {
+    PwmSetWing(spon_brt_);
+
+    RGBW rnav(0, spon_brt_, 0);
+    rwngb_.Fill(rnav, 18);
+    rwngf_.Fill(rnav, 23);
+
+    RGBW lnav(spon_brt_, 0, 0);
+    lwngb_.Fill(lnav, 18);
+    lwngf_.Fill(lnav, 23);
+
+    RGBW wht = RGBW(brt_);
     switch(Submode()) {
     case 0:
-      for (u8_t i = 0; i < 20; ++i) {
-        lwngf_.Set(i, (i & 0x02) ? led::wclr::blue : led::wclr::white);
-        rwngf_.Set(i, (i & 0x02) ? led::wclr::blue : led::wclr::white);
-      }
-      lwngb_.Fill(led::wclr::red, 0, 15);
-      lwngb_.Fill(led::wclr::white, 3, 3);
-      lwngb_.Fill(led::wclr::white, 9, 6);
-
-      rwngb_.Fill(led::wclr::red, 0, 15);
-      rwngb_.Fill(led::wclr::white, 3, 3);
-      rwngb_.Fill(led::wclr::white, 9, 6);
+      PwmSetBody(brt_, spon_brt_);
+      lwngb_.Fill(wht, 0, 18);
+      lwngf_.Fill(wht, 0, 23);
+      rwngb_.Fill(wht, 0, 18);
+      rwngf_.Fill(wht, 0, 23);
       break;
-    case 1:
-      lwngb_.Fill(color_mode_state_.GetColor());
-      lwngf_.Fill(color_mode_state_.GetColor());
-      rwngb_.Fill(color_mode_state_.GetColor());
-      rwngf_.Fill(color_mode_state_.GetColor());
+    case 1: {
+      PwmSetBody(brt_, spon_brt_);
+      RGBW clr = color_mode_state_.GetColor();
+      lwngb_.Fill(clr, 0, 18);
+      lwngf_.Fill(clr, 0, 23);
+      rwngb_.Fill(clr, 0, 18);
+      rwngf_.Fill(clr, 0, 23);
+    }
       break;
     case 2:
-      lwngb_.FillOp(color_mode_state_);
-      lwngf_.FillOp(color_mode_state_);
-      rwngb_.FillOp(color_mode_state_);
-      rwngf_.FillOp(color_mode_state_);
+      PwmSetBody(brt_, 0);
+      lwngb_.FillOp(color_mode_state_, 0, 18);
+      lwngf_.FillOp(color_mode_state_, 0, 23);
+      rwngb_.FillOp(color_mode_state_, 0, 18);
+      rwngf_.FillOp(color_mode_state_, 0, 23);
       break;
     }
   }
@@ -471,7 +530,7 @@ public:
     RGBW glow(g_brt);
     switch (submode) {
     case 1: {
-      pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = g_brt;
+      // pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = g_brt;
       RGBW rnav(0, spon_brt_, 0);
       RGBW lnav(spon_brt_, 0, 0);
       lwngb_.Fill(glow, 0, 15);
@@ -486,7 +545,7 @@ public:
       break;
     }
     case 2: {
-      pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = g_brt;
+      // pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = g_brt;
       lwngb_.Fill(glow);
       lwngf_.Fill(glow);
       rwngf_.Fill(glow);
@@ -494,7 +553,7 @@ public:
       break;
     }
     default: {
-      pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = 0;
+      // pwm_val_[PWM_LBDY] = pwm_val_[PWM_RBDY] = 0;
       u8_t step = 128 / WNGF_CNT;
       u8_t v = 64;  // 90 deg (sin should go from 255 -> 1)
       for (int i = 0; i < WNGF_CNT; ++i, v += step) {
@@ -532,8 +591,7 @@ private:
   u16_t now_;
   u8_t prev_update_;
   PinId led_pin_;
-  Pwm* const pwm_;
-  u8_t pwm_val_[NUM_PWM];
+  Pca9685* pwm_;
   u8_t mode_, brt_, spon_brt_;
   CtrlState state_;
   SolidModeState solid_mode_state_;
@@ -576,20 +634,14 @@ int main(void)
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_HI(APP);
   DBG_LEVEL_MD(SBUS);
-  SBus sbus(&Serial::usart2, /*invert=*/false);
+  SBus sbus(&Serial::usart1, /*invert=*/true);
 
-  PinId led_pin(LED_PIN);
-  led_pin.SetOutput();
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
   blink_pin.toggle();
-  /*
-  Button bright_button(PIN_C4);
-  Button mode_button(PIN_C5);
-  Button speed_button(PIN_C6);
-  */
-  Pwm pwm(PORT_D, 400);
-  Lights lights(LED_PIN, &pwm);
+
+  PinId rgb_led_pin(RGB_LED_PIN);
+  rgb_led_pin.SetOutput();
 
   Twi::twi.Setup(Twi::PINS_DEF, Twi::I2C_1M);
   Pca9685 pwm16(0x80, 16); // Uses Twi
@@ -598,9 +650,10 @@ int main(void)
   DBG_MD(APP, ("DaddyO: Run\n"));
 
   memset(led_data, 0, sizeof(led_data));
-  SendWS2812(LED_PIN, led_data, sizeof(led_data), 0xFF);
+  SendWS2812(rgb_led_pin, led_data, sizeof(led_data), 0xFF);
 
   pwm16.Init(/*totem=*/true);
+  Lights lights(rgb_led_pin, &pwm16);
 
   CtrlState state;
   u8_t blink_phase = 0;
@@ -608,22 +661,16 @@ int main(void)
   u8_t update_0 = 0;
   u8_t update_5 = 0;
   u8_t update_8 = 0;
-  u8_t update_4s = 0xFF;
-  bool use_sbus = 0;
-  bool recent_sbus = 0;
-
-  u8_t pwm_idx = 0;
+  // u8_t update_16s = 0xFF;
 
   while (1) {
     u16_t now = FastMs();
     if (sbus.Run()) {
-      recent_sbus = use_sbus = 1;
       state.Set(&sbus);  // Could call lights.Run if state changed...
       state.Log("Sbus");
     }
     if (update_0 == now) continue;  // 1ms
     update_0 = now;
-    // ButtonCheck(bright_button, mode_button, speed_button, state);
 
     const u8_t now_5 = now >> 5;   // 1/32 sec
     if (now_5 == update_5) continue;
@@ -636,25 +683,13 @@ int main(void)
     u8_t pat = lights.GetBlinkPattern();
     blink_pin.set(!(pat & (1 << blink_phase)));  // pin high is off.
     blink_phase = (blink_phase + 1) & 0x07;
-    // If it's been more than 1/4 sec since we last got
-    // sbus, then assume we aren't getting sbus anymore.
-    pwm16.SetLed(0, pwm_idx);
-    pwm16.SetLed(0, pwm_idx + 4);
-    pwm16.SetLed(0, pwm_idx + 8);
-    pwm_idx = (pwm_idx + 1) & 0x03;
-    pwm16.SetLed(1<<10, pwm_idx);
-    pwm16.SetLed(1<<10, pwm_idx + 4);
-    pwm16.SetLed(1<<10, pwm_idx + 8);
-    pwm16.Write();
 
-    if (!recent_sbus) use_sbus = 0;
-    recent_sbus = 0;
-
+#if 0
     u16_t now_s = FastSecs();
-    u8_t now_4s = now_s >> 4;
-    if (now_4s == update_4s) continue;  // 16 sec
-    update_4s = now_4s;
-    switch (now_4s & 0x03) {
+    u8_t now_16s = now_s >> 4;
+    if (now_16s == update_16s) continue;  // 16 sec
+    update_16s = now_16s;
+    switch (now_16s & 0x03) {
     case 0:
       state = CtrlState(MODE_SOLID | MODE_S0, 1, 1000, 1000);
       break;;
@@ -668,5 +703,6 @@ int main(void)
       state = CtrlState(MODE_SOLID | MODE_S0, 0, 1000, 1000);
       break;;
     }
+#endif
   }
 }
