@@ -91,6 +91,7 @@ void SetWhite(bool boost){
 static u8_t key_map[] = {0, 1, 3, 2 };
 
 void SetKeys(const KeyScan<2,2>& keys, bool is_white) {
+#if 0
   for (u8_t i = 0; i < keys.NumKeys(); ++i) {
     if (keys.IsDown(i)) {
       if (is_white) {
@@ -102,6 +103,7 @@ void SetKeys(const KeyScan<2,2>& keys, bool is_white) {
       leds[key_map[i]] = led_t(0);
     }
   }
+#endif
 }
 
 int main(void) {

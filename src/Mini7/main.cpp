@@ -182,44 +182,65 @@ public:
       pulse_saw_.SetSpeed(spd);
 
       switch (state->Mode()) {
-      case 0: UpdateSolidMode(); break;
-      case 1: UpdatePulseMode(now_ms); break;
-      case 2: UpdateRollingMode(now_ms); break;
+      case 0: UpdateSolidMode(state->Submode(), now_ms); break;
+      case 1: UpdateWhiteMode(state->Submode(), now_ms); break;
+      case 2: UpdateRollingMode(state->Submode(), now_ms); break;
       }
     }
     Push();
   }
-  void UpdateSolidMode() {
+
+  void UpdateSolidMode(u8_t submode, u16_t now_ms) {
+    RGB rnav, lnav;
+    pwm_val_[0] = spon_brt_;
+    if (submode == 0) {
+      rnav = RGB(0, spon_brt_, 0);
+      lnav = RGB(spon_brt_, 0, 0);
+    } else {
+      u8_t glow = sin8(pulse_saw_.Get(now_ms));
+      u8_t lo = spon_brt_ >> 3;
+      u8_t hi = spon_brt_;
+      u8_t brt = bscale8(hi - lo, glow) + lo;
+      rnav = RGB(0, brt, 0);
+      lnav = RGB(brt, 0, 0);
+    }
+    rwngb.Fill(rnav);
+    rwngf.Fill(rnav);
+    lwngb.Fill(lnav);
+    lwngf.Fill(lnav);
+  }
+
+  void UpdateWhiteMode(u8_t submode, u16_t now_ms) {
     const RGB rnav = RGB(0, spon_brt_, 0);
     const RGB lnav = RGB(spon_brt_, 0, 0);
-    pwm_val_[0] = brt_;
-    rwngb.Fill(rnav);
-    rwngf.Fill(rnav);
-    lwngb.Fill(lnav);
-    lwngf.Fill(lnav);
+    rwngb.Fill(rnav, 6, 3);
+    rwngf.Fill(rnav, 6, 3);
+    lwngb.Fill(lnav, 6, 3);
+    lwngf.Fill(lnav, 6, 3);
+
+    u8_t brt = brt_;
+    if (submode != 0) {
+      u8_t glow = sin8(pulse_saw_.Get(now_ms));
+      u8_t hi = brt_;
+      u8_t lo = brt_ >> 3;
+      brt = bscale8(hi - lo, glow) + lo;
+    }
+
+    pwm_val_[0] = brt;
+    const RGB wht(brt);
+    rwngb.Fill(brt, 0, 6);
+    rwngf.Fill(brt, 0, 6);
+    lwngb.Fill(brt, 0, 6);
+    lwngf.Fill(brt, 0, 6);
   }
 
-  void UpdatePulseMode(u16_t now_ms) {
-    u8_t glow = sin8(pulse_saw_.Get(now_ms));
-    u8_t lo = spon_brt_ >> 3;
-    u8_t hi = spon_brt_;
-    u8_t brt = bscale8(hi - lo, glow) + lo;
-    const RGB rnav = RGB(0, brt, 0);
-    const RGB lnav = RGB(brt, 0, 0);
-    pwm_val_[0] = brt_;
-    rwngb.Fill(rnav);
-    rwngf.Fill(rnav);
-    lwngb.Fill(lnav);
-    lwngf.Fill(lnav);
-  }
-
-  void UpdateRollingMode(u16_t now_ms) {
+  void UpdateRollingMode(u8_t submode, u16_t now_ms) {
     pwm_val_[0] = brt_;
     u8_t inner = pulse_saw_.Get(now_ms);
     const u8_t step = 256 / 10;
     u8_t lo = spon_brt_ >> 3;
     u8_t hi = spon_brt_;
-    for (i8_t i =8; i >=0; --i) {
+    for (i8_t i = 8; i >=0; --i) {
       u8_t b = bscale8(hi - lo, sin8(inner)) + lo;
       inner += step;
       const RGB rnav = RGB(0, b, 0);
@@ -228,6 +249,14 @@ public:
       rwngf.Set(i, rnav);
       lwngb.Set(i, lnav);
       lwngf.Set(i, lnav);
+    }
+    if (submode == 0) {
+      const RGB rnav = RGB(0, spon_brt_, 0);
+      const RGB lnav = RGB(spon_brt_, 0, 0);
+      rwngb.Fill(rnav, 6, 3);
+      rwngf.Fill(rnav, 6, 3);
+      lwngb.Fill(lnav, 6, 3);
+      lwngf.Fill(lnav, 6, 3);
     }
   }
 
@@ -258,11 +287,11 @@ public:
     switch (lvl) {
     default:
     case 0: brt_ = spon_brt_ = 0; result = false; break;
-    case 1: spon_brt_ = 0x40; brt_ = brt_ >> 3; break;
+    case 1: spon_brt_ = 0x40; brt_ = brt_ >> 2; break;
     case 2: spon_brt_ = 0xFF; break;
     }
 
-    DBG_HI(APP, ("Update Brt: %d Spn: %d lvl: %d\n", brt_, spon_brt_, lvl));
+    DBG_LO(APP, ("Update Brt: %d Spn: %d lvl: %d\n", brt_, spon_brt_, lvl));
     return result;
   }
 protected:

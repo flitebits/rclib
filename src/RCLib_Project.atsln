@@ -51,6 +51,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "DaddyO", "DaddyO\DaddyO.cpp
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Mini7", "Mini7\Mini7.cppproj", "{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LogoPlaque", "LogoPlaque\LogoPlaque.cppproj", "{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -138,6 +140,10 @@ Global
 		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Debug|AVR.Build.0 = Debug|AVR
 		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Release|AVR.ActiveCfg = Release|AVR
 		{A0DB62C4-DAAA-4D45-BBEE-4675C50A615A}.Release|AVR.Build.0 = Release|AVR
+		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Debug|AVR.ActiveCfg = Debug|AVR
+		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Debug|AVR.Build.0 = Debug|AVR
+		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Release|AVR.ActiveCfg = Release|AVR
+		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

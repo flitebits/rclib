@@ -42,6 +42,7 @@ struct RGB {
   RGB() { red = grn = blu = 0; }
   RGB(u8_t v) { red = grn = blu = v; }
   RGB(u8_t r, u8_t g, u8_t b) { red = r; grn = g; blu = b; }
+  inline RGB(const RGBW& rgbw);
 
   // We double count green since it's much more important than R/B for
   // perceived brightness and that makes the rescale a shift (since it's
@@ -165,6 +166,12 @@ struct RGBW {
     lhs.blu = addsat(lhs.blu, rhs.blu);
     lhs.wht = addsat(lhs.wht, rhs.wht);
     return lhs;
+  }
+
+  RGB::RGB(const RGBW& rgbw) {
+    red = rgbw.red + rgbw.wht;
+    grn = rgbw.grn + rgbw.wht;
+    blu = rgbw.blu + rgbw.wht;
   }
 }  // namespace led
 
