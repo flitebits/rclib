@@ -59,17 +59,43 @@ using led::VariableSaw;
 
 u8_t led_data[RGBW_CNT * 4 + RGB_CNT * 3];
 
-static const RGB fire_grad_rgb[5]   = { RGB(0x00, 0x00, 0x00),
-                                        RGB(0x40, 0x00, 0x00),
-                                        RGB(0x80, 0x20, 0x00),
-                                        RGB(0xFF, 0x80, 0x00),
-                                        RGB(0xFF, 0xFF, 0x80) };
-static const RGBW fire_grad_rgbw[5] = { RGBW(0x00),
-                                        RGBW(0x40, 0x00, 0x00),
-                                        RGBW(0x80, 0x20, 0x00),
-                                        RGBW(0xFF, 0x80, 0x00),
-                                        RGBW(0x80, 0x80, 0x00, 0x80) };
+static const RGB fire_grad_rgb[3][5]  = {/* Green */
+                                         { RGB(0x00, 0x00, 0x00),
+                                           RGB(0x00, 0x40, 0x00),
+                                           RGB(0x00, 0x80, 0x20),
+                                           RGB(0x00, 0xFF, 0x80),
+                                           RGB(0x80, 0xFF, 0xFF) },
+                                         /* Blue */
+                                         { RGB(0x00, 0x00, 0x00),
+                                           RGB(0x00, 0x00, 0x40),
+                                           RGB(0x00, 0x00, 0x80),
+                                           RGB(0x00, 0x44, 0xFF),
+                                           RGB(0x40, 0x80, 0xFF) },
+                                         /* Red */
+                                         { RGB(0x00, 0x00, 0x00),
+                                           RGB(0x40, 0x00, 0x00),
+                                           RGB(0x80, 0x20, 0x00),
+                                           RGB(0xFF, 0x80, 0x00),
+                                           RGB(0xFF, 0xFF, 0x80) }};
 
+static const RGBW fire_grad_rgbw[3][5] = {/* Green */
+                                          { RGBW(0x00, 0x00, 0x00),
+                                            RGBW(0x00, 0x40, 0x00),
+                                            RGBW(0x00, 0x80, 0x00),
+                                            RGBW(0x00, 0xFF, 0x44),
+                                            RGBW(0x00, 0xFF, 0x44, 0x80) },
+                                          /* Blue */
+                                          { RGBW(0x00, 0x00, 0x00),
+                                             RGBW(0x00, 0x00, 0x40),
+                                             RGBW(0x00, 0x00, 0x80),
+                                             RGBW(0x00, 0x44, 0xFF),
+                                             RGBW(0x00, 0x44, 0xFF, 0x40)
+                                          }, /* Red */
+                                          { RGBW(0x00),
+                                            RGBW(0x40, 0x00, 0x00),
+                                            RGBW(0x80, 0x20, 0x00),
+                                            RGBW(0xFF, 0x80, 0x00),
+                                            RGBW(0x80, 0x80, 0x00, 0x80) }};
 inline u8_t subClip(u8_t a, u8_t b) {
   u8_t r = a - b;
   return (r > a) ? 0 : r;
@@ -184,64 +210,217 @@ const led_range ranges[] = {
 };
 
 const RGBW tag_clr_rgbw[][TAG_COUNT] =
-  {{ RGBW(0xFF),           // TAG_HEAD
-     RGBW(0xFF, 0, 0),     // TAG_CNTR
-     RGBW(0xFF),           // RAG_TAIL
-     RGBW(0x80, 0, 0xFF),  // TAG_LIWG
-     RGBW(0x80, 0, 0xFF),  // TAG_RIWG
-     RGBW(0x00, 0, 0xFF),  // TAG_LOWG
-     RGBW(0x00, 0, 0xFF),  // TAG_ROWG
+  {{ // Green Tint
+     RGBW(0xFF),              // TAG_HEAD
+     RGBW(0x00, 0xFF, 0x00),  // TAG_CNTR
+     RGBW(0xFF),              // RAG_TAIL
+     RGBW(0x00, 0xFF, 0x80),  // TAG_LIWG
+     RGBW(0x00, 0xFF, 0x80),  // TAG_RIWG
+     RGBW(0x00, 0xFF, 0xFF),  // TAG_LOWG
+     RGBW(0x00, 0xFF, 0xFF),  // TAG_ROWG
     },
-   {
-    RGBW(0xFF),        // TAG_HEAD
-    RGBW(0xFF, 0, 0),  // TAG_CNTR
-    RGBW(0xFF),        // RAG_TAIL
-    RGBW(0xFF),        // TAG_LIWG
-    RGBW(0xFF),        // TAG_RIWG
-    RGBW(0xFF),        // TAG_LOWG
-    RGBW(0xFF),        // TAG_ROWG
+   { // Red heart
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0xFF, 0x00, 0x00),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF),              // TAG_LIWG
+    RGBW(0xFF),              // TAG_RIWG
+    RGBW(0xFF),              // TAG_LOWG
+    RGBW(0xFF),              // TAG_ROWG
    },
-   {
-    RGBW(0xFF),        // TAG_HEAD
-    RGBW(0xFF),        // TAG_CNTR
-    RGBW(0xFF),        // RAG_TAIL
-    RGBW(0xFF),        // TAG_LIWG
-    RGBW(0xFF),        // TAG_RIWG
-    RGBW(0xFF),        // TAG_LOWG
-    RGBW(0xFF),        // TAG_ROWG
-   }};
+   { // Green heart
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0x00, 0xFF, 0x00),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF),              // TAG_LIWG
+    RGBW(0xFF),              // TAG_RIWG
+    RGBW(0xFF),              // TAG_LOWG
+    RGBW(0xFF),              // TAG_ROWG
+   },
+   { // All green (not used)
+    RGBW(0x00, 0xFF, 0x00),  // TAG_HEAD
+    RGBW(0x00, 0xFF, 0x00),  // TAG_CNTR
+    RGBW(0x00, 0xFF, 0x00),  // RAG_TAIL
+    RGBW(0x00, 0xFF, 0x00),  // TAG_LIWG
+    RGBW(0x00, 0xFF, 0x00),  // TAG_RIWG
+    RGBW(0x00, 0xFF, 0x00),  // TAG_LOWG
+    RGBW(0x00, 0xFF, 0x00),  // TAG_ROWG
+   },
+   {  // Blue tint
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0x00, 0x00, 0xFF),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0x00, 0x80, 0xFF),  // TAG_LIWG
+    RGBW(0x00, 0x80, 0xFF),  // TAG_RIWG
+    RGBW(0x00, 0xFF, 0xFF),  // TAG_LOWG
+    RGBW(0x00, 0xFF, 0xFF),  // TAG_ROWG
+   },
+   { // Red heart
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0xFF, 0x00, 0x00),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF),              // TAG_LIWG
+    RGBW(0xFF),              // TAG_RIWG
+    RGBW(0xFF),              // TAG_LOWG
+    RGBW(0xFF),              // TAG_ROWG
+   },
+   { // Blue heart
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0x00, 0x00, 0xFF),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF),              // TAG_LIWG
+    RGBW(0xFF),              // TAG_RIWG
+    RGBW(0xFF),              // TAG_LOWG
+    RGBW(0xFF),              // TAG_ROWG
+   },
+   { // All Blue (not used)
+    RGBW(0x00, 0x00, 0xFF),  // TAG_HEAD
+    RGBW(0x00, 0x00, 0xFF),  // TAG_CNTR
+    RGBW(0x00, 0x00, 0xFF),  // RAG_TAIL
+    RGBW(0x00, 0x00, 0xFF),  // TAG_LIWG
+    RGBW(0x00, 0x00, 0xFF),  // TAG_RIWG
+    RGBW(0x00, 0x00, 0xFF),  // TAG_LOWG
+    RGBW(0x00, 0x00, 0xFF),  // TAG_ROWG
+   }
+  };
 const RGB tag_clr_rgb[][TAG_COUNT] =
-  {{
-    RGB(0xFF),             // TAG_HEAD
+  {{ // Green Tint
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
+    RGB(0x00, 0xFF, 0x00), // TAG_CNTR
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
+    RGB(0x00, 0xFF, 0x80), // TAG_LIWG
+    RGB(0x00, 0xFF, 0x80), // TAG_RIWG
+    RGB(0x00, 0xFF, 0xFF), // TAG_LOWG
+    RGB(0x00, 0xFF, 0xFF), // TAG_ROWG
+    },
+   { // Red heart
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
     RGB(0xFF, 0x00, 0x00), // TAG_CNTR
-    RGB(0xFF),             // RAG_TAIL
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_RIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LOWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_ROWG
+   },
+   { // Green heart
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
+    RGB(0x00, 0xFF, 0x00), // TAG_CNTR
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_RIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LOWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_ROWG
+   },
+   { // All green (not used)
+    RGB(0x00, 0xFF, 0x00), // TAG_HEAD
+    RGB(0x00, 0xFF, 0x00), // TAG_CNTR
+    RGB(0x00, 0xFF, 0x00), // RAG_TAIL
+    RGB(0x00, 0xFF, 0x00), // TAG_LIWG
+    RGB(0x00, 0xFF, 0x00), // TAG_RIWG
+    RGB(0x00, 0xFF, 0x00), // TAG_LOWG
+    RGB(0x00, 0xFF, 0x00), // TAG_ROWG
+   },
+   {  // Blue tint
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
+    RGB(0x00, 0x00, 0xFF), // TAG_CNTR
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
     RGB(0x80, 0x00, 0xFF), // TAG_LIWG
     RGB(0x80, 0x00, 0xFF), // TAG_RIWG
     RGB(0x00, 0x00, 0xFF), // TAG_LOWG
     RGB(0x00, 0x00, 0xFF), // TAG_ROWG
     },
-   {
+   { // Red heart
     RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
-    RGB(0xFF, 0, 0),       // TAG_CNTR
+    RGB(0xFF, 0x00, 0x00), // TAG_CNTR
     RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
     RGB(0xFF, 0xCC, 0xAA), // TAG_LIWG
     RGB(0xFF, 0xCC, 0xAA), // TAG_RIWG
     RGB(0xFF, 0xCC, 0xAA), // TAG_LOWG
     RGB(0xFF, 0xCC, 0xAA), // TAG_ROWG
    },
-   {
+   { // Blue heart
     RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
-    RGB(0xFF, 0xCC, 0xAA), // TAG_CNTR
+    RGB(0x00, 0x00, 0xFF), // TAG_CNTR
     RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
     RGB(0xFF, 0xCC, 0xAA), // TAG_LIWG
     RGB(0xFF, 0xCC, 0xAA), // TAG_RIWG
     RGB(0xFF, 0xCC, 0xAA), // TAG_LOWG
     RGB(0xFF, 0xCC, 0xAA), // TAG_ROWG
-   }};
+   },
+   { // All Blue (not used)
+    RGB(0x00, 0x00, 0xFF), // TAG_HEAD
+    RGB(0x00, 0x00, 0xFF), // TAG_CNTR
+    RGB(0x00, 0x00, 0xFF), // RAG_TAIL
+    RGB(0x00, 0x00, 0xFF), // TAG_LIWG
+    RGB(0x00, 0x00, 0xFF), // TAG_RIWG
+    RGB(0x00, 0x00, 0xFF), // TAG_LOWG
+    RGB(0x00, 0x00, 0xFF), // TAG_ROWG
+   },
+ };
+
+class State {
+public:
+  State(u8_t mode = 0, u8_t bright = 64, u8_t speed = 32, u8_t pallete = 0)
+    : mode_(mode), bright_(bright), speed_(speed), pallete_(pallete) { }
+
+  u8_t GetMode() { return mode_; }
+  void SetMode(u8_t mode) {
+    mode_ = mode;
+    if (mode_ > 6) mode_ = 0;
+  }
+  void IncMode() {
+    ++mode_;
+    if (mode_ > 6) mode_ = 0;
+  }
+
+  u8_t GetBright() { return bright_; }
+  void SetBright(u8_t bright) {
+    bright_ = bright;
+  }
+  void IncBright() {
+    if (bright_ < 8) {
+      bright_ = 16;
+    } else  if (bright_ == 255) {
+      bright_ = 0;
+    } else if (bright_ >= 64) {
+      bright_ = 255;
+    } else {
+      bright_ = bright_ << 2;
+    }
+  }
+
+  u8_t GetSpeed() { return speed_; }
+  void SetSpeed(u8_t speed) {
+    speed_ = speed;
+    if (speed > 64) speed = 64;
+  }
+  void IncSpeed() {
+    if (speed_ == 0) {
+      speed_ = 8;
+    } else {
+      speed_ = speed_ << 1;
+      if (speed_ > 64) speed_ = 0;
+    }
+  }
+
+  u8_t GetPallete() { return pallete_; }
+  void SetPallete(u8_t pallete) {
+    pallete_ = pallete;
+    if (pallete_ > 2) pallete_ = 2;
+  }
+protected:
+  u8_t mode_;
+  u8_t bright_;
+  u8_t speed_;
+  u8_t pallete_;
+};
 
 class Lights {
 public:
-  Lights(PinId led_pin) : led_pin_(led_pin), mode_(2), bright_(255), speed_(16) {
+  Lights(PinId led_pin) :
+    led_pin_(led_pin),
+    btn_state_(/*mode_=*/1, /*bright_=*/255, /*speed_=*/16, /*pallete_=*/0),
+    host_state_(/*mode_=*/5, /*bright_=*/64, /*speed_=*/16, /*pallete_=*/1) {
     void* ptr = led_data;
     ptr = head_rgbw.SetSpan(ptr, HEAD_RGBW_CNT, /*reverse=*/false);
     ptr = head_rgb.SetSpan(ptr, HEAD_RGB_CNT, /*reverse=*/false);
@@ -260,60 +439,43 @@ public:
     pulse_saw_.SetSpeed(16);
   }
 
-  void IncMode() {
-    ++mode_;
-    if (mode_ > 4) mode_ = 0;
-  }
-  void IncSpeed() {
-    switch (speed_) {
-    default:
-    case  64: speed_ =   0; break;
-    case   0: speed_ =   8; break;
-    case   8: speed_ =  16; break;
-    case  16: speed_ =  32; break;
-    case  32: speed_ =  64; break;
-    }
-    pulse_saw_.SetSpeed(speed_);
-  }
-  void IncBright() {
-    switch (bright_) {
-    default:
-    case 255: bright_ =   0; break;
-    case   0: bright_ =  64; break;
-    case  64: bright_ = 128; break;
-    case 128: bright_ = 255; break;
-    }
-  }
-
   void Update(u16_t now_ms) {
-    if (bright_ == 0) {
+    State& state = (btn_state_.GetMode() == 6) ? host_state_ : btn_state_;
+    Update(now_ms, state.GetMode(), btn_state_.GetBright(), state.GetSpeed(), state.GetPallete());
+  }
+  State& GetBtnState() { return btn_state_; }
+  State& GetHostState() { return host_state_; }
+
+private:
+  void Update(u16_t now_ms, u8_t mode, u8_t bright, u8_t speed, u8_t pallete) {
+    pulse_saw_.SetSpeed(speed);
+    if (bright == 0 || mode == 0) {
       memset(led_data, 0, sizeof(led_data));
     } else {
-      switch (mode_) {
-      case 0:
-        UpdatePulse(now_ms);
-        break;
+      switch (mode) {
       case 1:
-        UpdateWave(now_ms, 0);
+        UpdatePulse(now_ms, bright);
         break;
       case 2:
-        UpdateWave(now_ms, 1);
-        break;
       case 3:
-        UpdateWave(now_ms, 2);
-        break;
       case 4:
-        UpdateFire(speed_);
+        UpdateWave(now_ms, bright, (pallete << 2) + mode - 2);
+        break;
+      case 5:
+        UpdateFire(bright, speed, pallete);
         break;
       }
     }
     PushLeds();
   }
 
-  void UpdateFire(u8_t speed) {
+  void UpdateFire(u8_t bright, u8_t speed, u8_t pallette) {
     const u16_t fire = 4 * speed; // 0-255
     const int cooling = 85 - ((50 * fire) >> 8);  // 85 - 35
     const int sparking = 50 + ((150 * fire) >> 8); // 50 - 200
+    pallette = ((pallette < 0) ? 0 : ((pallette > 2) ? 2 : pallette));
+    const RGB*  grad_rgb  = fire_grad_rgb [pallette];
+    const RGBW* grad_rgbw = fire_grad_rgbw[pallette];
     UpdateHeatMap(cooling, sparking, ARRAY_SIZE(heat_lo), heat_lo);
     UpdateHeatMap(cooling, sparking, ARRAY_SIZE(heat_ro), heat_ro);
     UpdateHeatMap(cooling, sparking, ARRAY_SIZE(heat_li), heat_li);
@@ -324,30 +486,30 @@ public:
     in.SetSpan(low_rgbw.ptr(), 12, /*reverse=*/false);
     mid.SetSpan(low_rgb.ptr(), OW_RGB_CNT, /*reverse=*/false);
     out.SetSpan(in.next_ptr(), 8, /*reverse=*/true);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_lo), heat_lo, in, fire_grad_rgbw);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_lo), heat_lo, mid, fire_grad_rgb);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_lo), heat_lo, out, fire_grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_lo), heat_lo, in,  grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_lo), heat_lo, mid, grad_rgb);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_lo), heat_lo, out, grad_rgbw);
 
     in.SetSpan(row_rgbw.ptr(), 12, /*reverse=*/false);
     mid.SetSpan(row_rgb.ptr(), OW_RGB_CNT, /*reverse=*/false);
     out.SetSpan(in.next_ptr(), 8, /*reverse=*/true);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_ro), heat_ro, in, fire_grad_rgbw);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_ro), heat_ro, mid, fire_grad_rgb);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_ro), heat_ro, out, fire_grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_ro), heat_ro, in,  grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_ro), heat_ro, mid, grad_rgb);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_ro), heat_ro, out, grad_rgbw);
 
     out.SetSpan(liw_rgbw.ptr(), 7, /*reverse=*/false);
     mid.SetSpan(liw_rgb.ptr(), IW_RGB_CNT, /*reverse=*/false);
     in.SetSpan(out.next_ptr(), 5, /*reverse=*/true);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_li), heat_li, in, fire_grad_rgbw);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_li), heat_li, mid, fire_grad_rgb);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_li), heat_li, out, fire_grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_li), heat_li, in,  grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_li), heat_li, mid, grad_rgb);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_li), heat_li, out, grad_rgbw);
 
     out.SetSpan(riw_rgbw.ptr(), 7, /*reverse=*/false);
     mid.SetSpan(riw_rgb.ptr(), IW_RGB_CNT, /*reverse=*/false);
     in.SetSpan(out.next_ptr(), 5, /*reverse=*/true);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_ri), heat_ri, in, fire_grad_rgbw);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_ri), heat_ri, mid, fire_grad_rgb);
-    MapHeatToLed(bright_, ARRAY_SIZE(heat_ri), heat_ri, out, fire_grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_ri), heat_ri, in,  grad_rgbw);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_ri), heat_ri, mid, grad_rgb);
+    MapHeatToLed(bright, ARRAY_SIZE(heat_ri), heat_ri, out, grad_rgbw);
 
     u16_t sum = 0;
     for (u8_t i = 0; i < ARRAY_SIZE(heat_lo); ++i) {
@@ -358,25 +520,28 @@ public:
       sum += heat_li[i];
       sum += heat_ri[i];
     }
-    const u8_t t = sum / (2 * ARRAY_SIZE(heat_li) + ARRAY_SIZE(heat_lo));
-    RGBW c_rgbw = Lookup5(fire_grad_rgbw, t);
-    Fade(&c_rgbw, bright_);
+    const u8_t t = sum / (4 * (ARRAY_SIZE(heat_li) + ARRAY_SIZE(heat_lo)));
+
+    RGBW c_rgbw = Lookup5(grad_rgbw, t);
+    Fade(&c_rgbw, bright);
     rec_rgbw.Fill(c_rgbw);
-    RGB c_rgb = Lookup5(fire_grad_rgb, t);
-    Fade(&c_rgb, bright_);
+    RGB c_rgb = Lookup5(grad_rgb, t);
+    Fade(&c_rgb, bright);
     rec_rgb.Fill(c_rgb);
 
-    RGB wht(bright_);
-    RGBW wwht(bright_);
+    RGB wht(bright);
+    RGBW wwht(bright);
     head_rgbw.Fill(wwht);
     head_rgb.Fill(wht);
     tail_rgbw.Fill(wwht);
     tail_rgb.Fill(wht);
   }
 
-  void UpdatePulse(u16_t now_ms) {
-    u8_t glow = sin8(pulse_saw_.Get(now_ms)) >> 2;
-    glow = bscale8(glow, bright_);
+  void UpdatePulse(u16_t now_ms, u8_t bright) {
+    u8_t glow = sin8(pulse_saw_.Get(now_ms));
+    DBG_MD(APP, ("ms: %d glow: %d\n", now_ms, glow));
+
+    glow = bscale8(glow, bright);
     RGB wht(glow);
     RGBW wwht(glow);
     head_rgbw.Fill(wwht);
@@ -395,7 +560,7 @@ public:
     row_rgb.Fill(wht);
   }
 
-  void UpdateWave(u16_t now_ms, u8_t pallete) {
+  void UpdateWave(u16_t now_ms, u8_t bright, u8_t pallete) {
     u8_t phase = ~pulse_saw_.Get(now_ms);
     void* ptr = led_data;
     const RGBW* clr_rgbw = tag_clr_rgbw[pallete];
@@ -403,7 +568,7 @@ public:
     for (u8_t i = 0; i < ARRAY_SIZE(ranges); ++i) {
       const led_range& item = ranges[i];
       const u8_t item_phase = phase + item.dist;
-      const u8_t glow = bscale8(sin8(item_phase) >> 2, bright_);
+      const u8_t glow = bscale8(sin8(item_phase) >> 2, bright);
       if (item.is_rgbw) {
         LedSpan<RGBW> span(ptr, item.len, false);
         RGBW clr = clr_rgbw[item.tag];
@@ -426,7 +591,8 @@ public:
 
 protected:
   const PinId led_pin_;
-  u8_t mode_, bright_, speed_;
+  State btn_state_;
+  State host_state_;
 
   LedSpan<RGBW> head_rgbw;
   LedSpan<RGB>  head_rgb;
@@ -450,6 +616,27 @@ protected:
   u8_t heat_ri[7];
 };
 
+void ProcessCmd(State& host_state, u8_t* line) {
+  const u8_t kBase = 'A';
+  const u8_t kVersion =  kBase + 0;
+  u8_t *ptr = line;
+  if (*ptr != kVersion) {
+    DBG_MD(APP, ("Wrong Version: %c expecting: %c\n", *ptr, kVersion));
+    return;
+  }
+  u8_t mode = *++ptr - kBase;
+  if (mode > 5) mode = 5;
+  u8_t pallete = *++ptr - kBase;
+  if (pallete > 1) pallete = 1;
+  u8_t speed = *++ptr - kBase;
+  if (speed > 64) speed = 64;
+
+  host_state.SetMode(mode);
+  host_state.SetPallete(pallete);
+  host_state.SetSpeed(speed);
+  DBG_MD(APP, ("State: M:%d P:%d S:%d\n", mode, pallete, speed));
+}
+
 int main(void)
 {
   // Do very basic chip config, in particular setup base clocks.
@@ -462,6 +649,9 @@ int main(void)
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
   DBG_LEVEL_MD(SBUS);
+
+  Serial& bt_serial = Serial::usart3;
+  bt_serial.Setup(115200, 8, 0, 1);
 
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
@@ -486,23 +676,45 @@ int main(void)
   u8_t update_8 = 0;
   u8_t update_16s = 0xFF;
 
+  bool bad_data = false;
+  u8_t data_pos = 0;
+  u8_t read_data[64];
+
   while (1) {
     u16_t now = FastTimeMs();
 
     if (update_0 == now) continue;  // 1ms
     update_0 = now;
+    if (bt_serial.Avail()) {
+      u8_t rd_err;
+      u8_t ch = bt_serial.Read(&rd_err);
+      if (rd_err) {
+        bad_data = true;
+      } else if (ch == '\r') {
+        read_data[data_pos] = 0;
+        if (!bad_data) {
+          ProcessCmd(lights.GetHostState(), read_data);
+        }
+        data_pos = 0;
+        bad_data = false;
+      } else {
+        read_data[data_pos] = ch;
+        data_pos = (data_pos + 1) & 0x3F;
+      }
+    }
 
     const u8_t now_3 = now >> 3;   // 1/128 sec
     if (now_3 == update_3) continue;
     update_3 = now_3;
+    State& btn_state = lights.GetBtnState();
     if (btn_mode.Check() && btn_mode.Down()) {
-      lights.IncMode();
+      btn_state.IncMode();
     }
     if (btn_brt.Check() && btn_brt.Down()) {
-      lights.IncBright();
+      btn_state.IncBright();
     }
     if (btn_spd.Check() && btn_spd.Down()) {
-      lights.IncSpeed();
+      btn_state.IncSpeed();
     }
 
     const u8_t now_5 = now >> 5;   // 1/32 sec

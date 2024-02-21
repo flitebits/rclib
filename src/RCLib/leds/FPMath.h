@@ -139,6 +139,7 @@ public:
 
   // Speed is the counts/ms as a 8.8 Fixed Point Number.
   void SetSpeed(u16_t speed) {
+    if (speed == spd_) return;
     u8_t prev = Get(prev_time_);
     spd_ = speed;
     u8_t curr = Get(prev_time_);

@@ -37,7 +37,7 @@
 #endif
 
 #if defined(__AVR_ATmega4809__)
-#define LED_PIN (PIN_C2)
+#define LED_PIN (PIN_F0)
 #endif
 
 #define LED_RGB (0)
