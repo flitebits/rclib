@@ -197,6 +197,9 @@
     <Compile Include="Dbg.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="DbgCmds.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="DShot.cpp">
       <SubType>compile</SubType>
     </Compile>
@@ -312,6 +315,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="Util.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="VarCmds.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="VarCmds.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="WS2812.cpp">

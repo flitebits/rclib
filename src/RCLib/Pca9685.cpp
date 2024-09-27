@@ -11,20 +11,19 @@
 #include "Twi.h"
 
 namespace {
-  // This is a power series of (e ^ (log(255) / 16)) with the power going from 0
-  // to 16.  This is chosen because the apparent brightness is like loudness a log
-  // of the "number of photons" which is what the PWM adjusts.
-const u8_t apparent2pwm[18] = {
-  0, 1, 2, 3, 5, 7, 10, 13, 17, 23, 33, 45, 64, 90, 128, 180, 255, 255 };
+// This is a power series of (e ^ (log(255) / 16)) with the power going from 0
+// to 16.  This is chosen because the apparent brightness is like loudness a
+// log of the "number of photons" which is what the PWM adjusts.
+const u8_t apparent2pwm[18] =
+//  { 0, 16, 64, 144, 256, 400, 576, 784, 1024, 1296, 1600, 1936, 2304,
+//    2704, 3136, 3600, 4096, 4096};
+{ 0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225, 255, 255};
 } // anonymous namespace
 
 // This E(log(255)/15) raised to the power 1->15, this gives an exponential curve
 
 u16_t Pca9685::Apparent2Pwm(u8_t apparent) {
-  if (apparent == 255) return 0x0FFF;
-  if (apparent < 64) {
-    return apparent;
-  }
+  if (apparent == 255) return 0x1000;
   u8_t idx = apparent >> 4;
   u8_t f = (apparent & 0x0F);
   u8_t v0 = apparent2pwm[idx];

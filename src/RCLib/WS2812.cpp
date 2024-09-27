@@ -6,6 +6,7 @@
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 
+#include "Dbg.h"
 #include "WS2812.h"
 #include <util/atomic.h>
 
@@ -33,8 +34,8 @@
   } while(false)
 */
 
-// The exact number of nops here has been calibrated with an oscilloscope
-// This is for PDIV = 1.
+// The exact number of nops here has been calibrated with an oscilloscope This
+// is for PDIV = 1.
 #define SEND_0(port, mask, skip) do {           \
     port->OUTSET = mask;                        \
     nop();                                      \
@@ -42,9 +43,9 @@
     nop();                                      \
     nop();                                      \
     nop();                                      \
+    nop();                                      \
+    nop();                                      \
     port->OUTCLR = mask;                        \
-    nop();                                      \
-    nop();                                      \
     nop();                                      \
     nop();                                      \
     nop();                                      \
@@ -62,6 +63,8 @@
 
 #define SEND_1(port, mask, skip) do {           \
     port->OUTSET = mask;                        \
+    nop();                                      \
+    nop();                                      \
     nop();                                      \
     nop();                                      \
     nop();                                      \

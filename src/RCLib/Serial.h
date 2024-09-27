@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #ifndef SERIAL_H_
@@ -50,13 +50,14 @@ class Serial {
     FRAME_ERR_BM = USART_FERR_bm,
     PARITY_ERR_BM = USART_PERR_bm,
   };
-  
+  void DumpReadBuffer();
+
   // Disconnects
   void Disable();
   void Enable(u8_t mode);
   void Disable(u8_t mode);
   void FlushTx();  // returns once all bytes have been written.
-  
+
   void Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
              bool invert=false, bool use_alt_pins=false,
              u8_t mode=MODE_TX_RX, bool use_pullup = false,
@@ -100,7 +101,7 @@ protected:
   // protected used to construct the four usarts.
   Serial(u8_t usart_idx);
   u8_t ReadInternal(u8_t* err);  // Reads a byte from register
-  
+
   u8_t idx_;
   USART_t* usart_;
   PORT_t* port_;

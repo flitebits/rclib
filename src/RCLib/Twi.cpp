@@ -130,6 +130,6 @@ void Twi::MasterSendBytes(u8_t addr, const u8_t* data, int len) {
   data_ptr_ = data;
   len_ = len;
   idx_ = 0;
-  state_ = TWI_STATE_BYTES;
   TWI0.MADDR = (addr & 0xFE); // clear low bit 0 = W, 1 = R
+  state_ = TWI_STATE_BYTES;
 }

@@ -1,9 +1,9 @@
 // Copyright 2020 Thomas DeWeese
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 
 #include "Serial.h"
@@ -12,12 +12,13 @@
 #include <avr/io.h>
 #include <util/atomic.h>
 
-#include "util.h"
+#include "Dbg.h"
 #include "RtcTime.h"
+#include "util.h"
 
 namespace {
   const char kNumCh[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8',
-			 '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+                         '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 }
 
 Serial Serial::usart0(0);
@@ -42,11 +43,11 @@ ISR(USART3_RXC_vect) {
 }
 #endif
 
-Serial::Serial(u8_t idx) 
+Serial::Serial(u8_t idx)
   : idx_(idx)
 #ifdef SERIAL_TRACK_ERRORS
   ,overflow_(0), frame_err_(0), parity_err_(0)
-#endif    
+#endif
 {
   switch (idx_) {
     case 0: usart_ = &USART0; port_ = &PORTA; break;
@@ -55,32 +56,32 @@ Serial::Serial(u8_t idx)
     case 3: usart_ = &USART3; port_ = &PORTB; break;
   }
 }
-void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits, 
+void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
                    bool invert, bool use_alt_pins, u8_t mode, bool use_pullup,
-		   bool buffered, bool use_2x_mode) {
+                   bool buffered, bool use_2x_mode) {
   buffered_ = buffered;
-  PORTMUX.USARTROUTEA = (PORTMUX.USARTROUTEA & ~(0b11 << (2 * idx_))) | 
+  PORTMUX.USARTROUTEA = (PORTMUX.USARTROUTEA & ~(0b11 << (2 * idx_))) |
     ((use_alt_pins ? 0b01 : 0) << (2 * idx_));
   bool tx_enable = mode & MODE_TX;
   bool rx_enable = mode & MODE_RX;
   bool one_wire = mode & MODE_1WIRE;
-  
+
   if (tx_enable || one_wire) {
     port_->OUTSET = 1 << (use_alt_pins ? 4 : 0);  // Tx0 high
     port_->DIRSET = 1 << (use_alt_pins ? 4 : 0);  // Tx0 output pin
     const u8_t pin_val = (((invert     ? 1 : 0) << PORT_INVEN_bp) |  // Inverted Serial
-			  ((use_pullup ? 1 : 0) << PORT_PULLUPEN_bp));
+                          ((use_pullup ? 1 : 0) << PORT_PULLUPEN_bp));
     if (use_alt_pins) port_->PIN4CTRL = pin_val;
     else              port_->PIN0CTRL = pin_val;
   }
   if (rx_enable && !one_wire) {  // In one wire mode no RX pin.
     port_->DIRCLR = 1 << (use_alt_pins ? 5 : 1);  // Rx0 input pin
     const u8_t pin_val = (((invert     ? 1 : 0) << PORT_INVEN_bp) |  // Inverted Serial
-			  ((use_pullup ? 1 : 0) << PORT_PULLUPEN_bp));
+                          ((use_pullup ? 1 : 0) << PORT_PULLUPEN_bp));
     if (use_alt_pins) port_->PIN5CTRL = pin_val;
     else              port_->PIN1CTRL = pin_val;
-  }       
- 
+  }
+
   // Extract base clock frequencies to calculate baud rate setting.
   long base_clk = GetMainClock();
   u8_t pdiv = GetPerClockScale();
@@ -93,11 +94,11 @@ void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
   i32_t baud_clk = (base_clk + (clk_divisor >> 1)) / clk_divisor;
   // Now scale the base baud clk by the 5V error in the main oscillator.
   usart_->BAUD = baud_clk;
-  
+
   u8_t ctrlc_val = USART_CMODE_ASYNCHRONOUS_gc;
   switch (parity) {
   case PARITY_EVEN: ctrlc_val |= USART_PMODE_EVEN_gc; break;
-  case PARITY_ODD: ctrlc_val |= USART_PMODE_ODD_gc; break;    
+  case PARITY_ODD: ctrlc_val |= USART_PMODE_ODD_gc; break;
   default:
   case PARITY_NONE: ctrlc_val |= USART_PMODE_DISABLED_gc; break;
   }
@@ -116,8 +117,8 @@ void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
 
   // Loop back mode enable (read/write to same pin)
   usart_->CTRLA = ((one_wire ? USART_LBME_bm : 0) |
-		   // Buffered mode, interrupt reads into circular buffer
-		   (buffered ? USART_RXCIF_bm : 0));
+                   // Buffered mode, interrupt reads into circular buffer
+                   (buffered ? USART_RXCIF_bm : 0));
   usart_->CTRLB =
     (((rx_enable ? 1 : 0) << USART_RXEN_bp) |  // En/Disable Receive pin
      ((tx_enable ? 1 : 0) << USART_TXEN_bp) |  // En/Disable Transmit
@@ -130,8 +131,8 @@ void Serial::Setup(long baud, u8_t data_bits, u8_t parity, u8_t stop_bits,
 
 void Serial::Disable() {
   PORTMUX.USARTROUTEA = ((PORTMUX.USARTROUTEA & ~(0b11 << (2 * idx_))) |
-			 (0b11 << (2 * idx_)));
-}  
+                         (0b11 << (2 * idx_)));
+}
 
 void Serial::Enable(u8_t mode) {
   if (mode & MODE_RX) {
@@ -153,10 +154,10 @@ void Serial::Disable(u8_t mode) {
 void Serial::SetBuffered(bool buffered) {
   if (buffered_ == buffered) return;
   buffered_ = buffered;
-  widx_ = ridx_ = 0;  
+  widx_ = ridx_ = 0;
   usart_->CTRLA = buffered ?
     (usart_->CTRLA | USART_RXCIF_bm) :
-    (usart_->CTRLA & USART_RXCIF_bm);
+    (usart_->CTRLA & ~USART_RXCIF_bm);
 }
 
 void Serial::ReadInterrupt() {
@@ -187,8 +188,8 @@ bool Serial::Avail() {
     return ((usart_->STATUS & USART_RXCIF_bm) != 0);
   }
   bool result;
-  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { 
-	  result = ridx_ != widx_;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+          result = ridx_ != widx_;
   }
   return result;
 }
@@ -239,10 +240,10 @@ u8_t Serial::ReadInternal(u8_t* err_ptr) {
 #ifdef SERIAL_TRACK_ERRORS
   if ((rx_hi & USART_BUFOVF_bm) != 0) {
     ++overflow_;
-  }  
+  }
   if ((rx_hi & USART_FERR_bm) != 0) {
     ++frame_err_;
-  }    
+  }
   if ((rx_hi & USART_PERR_bm) != 0) {
     ++parity_err_;
   }
@@ -251,6 +252,16 @@ u8_t Serial::ReadInternal(u8_t* err_ptr) {
     *err_ptr = rx_hi & (USART_BUFOVF_bm | USART_FERR_bm | USART_PERR_bm);
   }
   return rx_lo;
+}
+
+void Serial::DumpReadBuffer() {
+  DBG_LO(SBUS, ("Widx: %d Ridx: %d\n", widx_, ridx_));
+  for (int i = 0; i < (1 << BUFFER_SZ_BITS); ++i) {
+    DBG_LO(SBUS, ("%cEnt[%d]: D:%02X E:%02X T:%04X\n",
+                  (i == widx_) ? ((i == ridx_) ? '*' : 'w') :
+                  ((i == ridx_) ? 'r' : ' '), i, infos_[i].data, infos_[i].err,
+                  infos_[i].time));
+  }
 }
 
 void Serial::WriteByte(const char ch) {
