@@ -6,13 +6,15 @@
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 
+#include <ctype.h>
 #include <string.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 
 #include "Boot.h"
-#include "Dbg.h"
+#include "DbgCmds.h"
+#include "VarCmds.h"
 #include "IntTypes.h"
 #include "RtcTime.h"
 
@@ -22,10 +24,12 @@
 #include "leds/Pixel.h"
 #include "leds/Rgb.h"
 
+#include "Pca9685.h"
 #include "Pins.h"
 #include "Pwm.h"
 #include "SBus.h"
 #include "Serial.h"
+#include "Twi.h"
 #include "WS2812.h"
 
 using led::bscale8;
@@ -35,6 +39,8 @@ using led::RGBW;
 using led::RGB;
 using led::sin8;
 using led::VariableSaw;
+using dbg::DbgCmds;
+using dbg::CmdHandler;
 
 #if defined(__AVR_ATmega4808__)
 #define LED_PIN (PIN_F0)
@@ -50,20 +56,44 @@ using led::VariableSaw;
 #define LIGHT_SUBMODE_CH (13)  // Sets mode sub mode (color range, etc)
 #define LIGHT_THROTTLE_CH (14)  // Adjusts lights speed
 
-#define IS_HOST (true)
+#define FUSE_CNT (34)
+#define IWING_CNT (12)
+#define OWING_CNT (38) // Starboard (39)
+#define SPON_CNT (17)
+#define STAB_CNT (7)
+#define NCEL_CNT (7)
+#define TAIL_CNT (STAB_CNT + 2 * NCEL_CNT)
 
-#define WING_CNT (36)
-#define SPON_CNT (16)
-#define BACK_CNT (17)
-#define MAIN_CNT (30)
-#define TAIL_FRT (8)
-#define TAIL_SDE (8)
-#define TAIL_BCK (9)
-#define TAIL_CNT (TAIL_FRT + TAIL_SDE + TAIL_SDE + TAIL_BCK)
-#define RGBW_CNT (WING_CNT + SPON_CNT + TAIL_CNT)
-#define RGB_CNT  (BACK_CNT + 2 * MAIN_CNT)
+#define NUM_PWM (15)
+
+#define RGBW_CNT (IWING_CNT + OWING_CNT + 1 + SPON_CNT + TAIL_CNT)
+#define RGB_CNT  (2* FUSE_CNT)
 
 u8_t led_data[RGBW_CNT * 4 + RGB_CNT * 3];
+
+const u8_t lfuse_left_idx[6]  = {10, 11, 0, 1, 2, 3};
+const u8_t lfuse_right_idx[6] = {12, 13, 4, 5, 6, 7};
+const u8_t lwing_idx[3]       = {8, 15, 9};
+
+const u8_t rfuse_left_idx[6]  = {15, 14, 4, 5, 6, 7};
+const u8_t rfuse_right_idx[6] = {13, 12, 0, 1, 2, 3};
+const u8_t rwing_idx[3]       = {8, 8, 8};
+
+const u8_t* fuse_left_idx;
+const u8_t* fuse_right_idx;
+const u8_t* wing_idx;
+
+void SetPwmIdxs(bool left_hull) {
+  if (left_hull) {
+    fuse_left_idx  = lfuse_left_idx;
+    fuse_right_idx = lfuse_right_idx;
+    wing_idx       = lwing_idx;
+  } else {
+    fuse_left_idx  = rfuse_left_idx;
+    fuse_right_idx = rfuse_right_idx;
+    wing_idx       = rwing_idx;
+  }
+}
 
 enum CmdCode {
               CMD_TYPE_MSK   = 0xF0,
@@ -71,8 +101,9 @@ enum CmdCode {
               CMD_UPDATE     = 0x12,
               CMD_STATE      = 0x20,
               CMD_CTRL_STATE = CMD_STATE | 0x00,
-              CMD_CLR_STATE  = CMD_STATE | 0x01,
-              CMD_PLS_STATE  = CMD_STATE | 0x02,
+              CMD_SLD_STATE  = CMD_STATE | 0x01,
+              CMD_CLR_STATE  = CMD_STATE | 0x02,
+              CMD_PLS_STATE  = CMD_STATE | 0x03,
 };
 
 bool IsStateCmd(u8_t cmd) {
@@ -89,9 +120,13 @@ static RGB eng_grad[5] = { RGB(0x00, 0x00, 0x00),
 // signals the start of a packet by having it's high bit set, no other bytes
 // will have their high bits set.  The structure of the key byte is:
 // |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
-// |  1  |          packet high bits               |
+// |  1  |    high bit from each byte in packet    |
 // bit 7 is always 1
 // bits 0-6 are the high bits from the packet bytes (which are cleared).
+// Rest of the bytes in the packet are
+// |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
+// |  0  |          packet high bits               |
+
 // This means that you can resync by dropping bytes until you get a byte
 // with it's high bit set and then you know the rest of the bytes are a
 // packet.  A packet is always 8 bytes (including the signal byte).
@@ -176,9 +211,6 @@ protected:
   u8_t packet_[8];
 };
 
-// The PWM channels go back to front with 5 zones.
-#define NUM_PWM (5)
-
 struct CtrlState {
   enum  ChangeBits {
                     CHG_NONE = 0,
@@ -238,29 +270,86 @@ struct CtrlState {
 };
 
 struct SolidState {
-  u8_t brt;
-  u8_t spon_brt;
-  u8_t sub_mode;
-  bool flash;
+  SolidState() : flash_(false) { }
 
-  SolidState() : brt(0), spon_brt(0), flash(false) { }
-
-  void UpdateState(bool is_host, u8_t brt, u8_t spon_brt) {
-    this->brt = brt;
-    this->spon_brt = spon_brt;
+  void UpdateState(bool is_host, i16_t thr, u8_t brt, u8_t spon_brt) {
+    u8_t spd = (thr + (1 <<3)) >> 4;
+    if (spd < 0x07) spd = 0x07;
+    u8_t base_val = spon_brt >> 4;
+    u8_t clr_val = spon_brt - base_val;
+    if (is_host) {
+      base_color_ = RGB(base_val, 0, 0);
+      color_ = RGB(clr_val, 0, 0);
+      pulse_saw_.SetSpeed(u16_t(spd) << 1);
+    } else {
+      base_color_ = RGB(0, base_val, 0);
+      color_ = RGB(0, clr_val, 0);
+      pulse_saw_.SetState(u16_t(spd) << 1, wire_.pulse_off);
+    }
   }
 
   void Update(u16_t now) {
     // Flash for the last 64ms of every second (1s = 1024 or 10bits
     // 64ms = (1 << 6) so
-    flash = ((u8_t(now >> 6) & 0x1F) == 0x1F);
+    flash_ = ((u8_t(now >> 6) & 0x1F) == 0x1F);
+    pulse_phase_ = 255 - pulse_saw_.Get(now);
   }
+
+  const RGB& GetPix() { return color_; }
+  bool flash() { return flash_; }
+
+  void SetOpOffset(u8_t offset) {
+    offset_ = offset;
+  }
+  // Scale is 2.6 FP number
+  void SetOpScale(u8_t scale) {
+    scale_ = scale;
+  }
+
+  void operator() (u8_t frac, RGB* pix) const {
+    frac = (u16_t(frac) * scale_) >> 6;
+    *pix = color_;
+    Fade(pix, Logify(sin8(offset_ + pulse_phase_ + frac)));
+    *pix += base_color_;
+  }
+  void operator() (u8_t frac, RGBW* pix) const {
+    frac = (u16_t(frac) * scale_) >> 6;
+    *pix = color_;
+    Fade(pix, Logify(sin8(offset_ + pulse_phase_ + frac)));
+    *pix += base_color_;
+  }
+
+  void Send(SyncableChannel* ch, u8_t max_bytes) {
+    if (sizeof(WireData) > max_bytes) return;
+    wire_.pulse_off = pulse_saw_.GetOff();
+    ch->WriteBytes(reinterpret_cast<u8_t*>(&wire_), sizeof(wire_), true);
+  }
+  bool Receive(u8_t* packet, u8_t max_bytes) {
+    if (max_bytes < sizeof(wire_)) return false;
+    memcpy(&wire_, packet, sizeof(wire_));
+    DBG_HI(APP, ("Rcv Solid: pulse:%d\n", wire_.pulse_off));
+    return true;
+  }
+
+protected:
+  struct WireData {
+    u8_t pulse_off;
+  };
+  WireData wire_;
+  RGB base_color_;
+  RGB color_;
+  bool flash_;
+  VariableSaw pulse_saw_;
+  u8_t pulse_phase_;
+  u8_t offset_;
+  u8_t scale_;
 };
 
 class ColorModeState {
 public:
   ColorModeState()
     : brt_(0), pulse_phase_(0), scale_(0), offset_(0) { }
+
   void UpdateState(bool is_host, u8_t submode, i16_t thr, u8_t brt) {
     submode_ = submode;
     brt_ = brt;
@@ -321,7 +410,7 @@ public:
   bool Receive(u8_t* packet, u8_t max_bytes) {
     if (max_bytes < sizeof(wire_)) return false;
     memcpy(&wire_, packet, sizeof(wire_));
-    DBG_HI(APP, ("Rcv: clr:%d pulse:%d\n", wire_.color_off, wire_.pulse_off));
+    DBG_HI(APP, ("Rcv Color: clr:%d pulse:%d\n", wire_.color_off, wire_.pulse_off));
     return true;
   }
 
@@ -377,8 +466,8 @@ public:
   void Update(u16_t now) {
     if (flash_cnt_ > 0) {
        --flash_cnt_;
-       int v = temp_[MAIN_CNT + BACK_CNT] + 0xC0;
-       temp_[MAIN_CNT + BACK_CNT] = v > 255 ? 255 : v;
+       int v = temp_[FUSE_CNT] + 0xC0;
+       temp_[FUSE_CNT] = v > 255 ? 255 : v;
     }
     u8_t pulse_pos = pulse_saw_.Get(now);
     u8_t glow = glow_saw_.Get(now) + glow_off_;
@@ -414,8 +503,8 @@ public:
       u8_t prev_wave_pos = prev_pulse_pos_ + wave_off_[i];
       if (prev_pulse_pos_ < 0) prev_pulse_pos_ = 0;
       u8_t wave_pos = pulse_pos + wave_off_[i];
-      if (wave_pos > (MAIN_CNT + BACK_CNT - 3)) {
-        wave_pos = (MAIN_CNT + BACK_CNT - 3);
+      if (wave_pos > (FUSE_CNT - 3)) {
+        wave_pos = (FUSE_CNT - 3);
         wave_off_[i] = 0;
         flash_cnt_ = 4;
       }
@@ -455,7 +544,7 @@ protected:
   u8_t prev_glow_;
   u8_t glow_off_;
   u8_t wave_off_[MAX_WAVE];
-  u8_t temp_[MAIN_CNT + BACK_CNT + 1];
+  u8_t temp_[FUSE_CNT + 1];
   u8_t tail_temp_;
   u8_t flash_cnt_;
 };
@@ -467,146 +556,177 @@ public:
         HOST = 1,
         CLIENT = 2,
   };
-  Lights(PinId led_pin, Pwm* pwm) :
+  Lights(PinId led_pin, Pca9685* pwm) :
     host_(UNSET), led_pin_(led_pin), pwm_(pwm),
     mode_(0), brt_(0), spon_brt_(0) {
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm->Enable(i);
-      pwm_val_[i] = 0;
-    }
   }
+
+  const CtrlState& State() const { return state_; }
+  void ApplyState(const CtrlState& new_state) {
+    state_.UpdateFromState(new_state);
+    ApplyUpdatedState();
+  }
+
   u8_t Mode() { return mode_ >> 2; }
   u8_t Submode() { return mode_ & 0x03; }
 
   bool IsHostSet() { return host_ !=  UNSET; }
   void SetIsHost(bool is_host) {
+    // Host is always the left hull (it has the receiver).
     host_ = is_host ? HOST : CLIENT;
+    SetPwmIdxs(/*left_hull=*/is_host);
     // Order of leds in the string are slightly different for host/client
     // sides of plane.  In particular fuselage font/back are swapped.
     void* ptr = led_data;
-    ptr = wing_.SetSpan(ptr, WING_CNT, false);
-    ptr = spon_.SetSpan(ptr, SPON_CNT, false);
-    if (host_ == HOST) {
-      ptr = back_.SetSpan(ptr, BACK_CNT, true);
-      ptr = f_osd_.SetSpan(ptr, MAIN_CNT, true);
-      ptr = f_isd_.SetSpan(ptr, MAIN_CNT, false);
-      ptr = tail_frt_.SetSpan(ptr, TAIL_FRT, false);
-      ptr = tail_isd_.SetSpan(ptr, TAIL_SDE, true);
-      ptr = tail_osd_.SetSpan(ptr, TAIL_SDE, false);
-      ptr = tail_bck_.SetSpan(ptr, TAIL_BCK, true);
+    // Host is the left(port) hull, led spans are largely the same, but the left
+    // outer wing has 1 less led (grr).
+    u8_t owing_cnt = OWING_CNT + (is_host ? 0 : 1);
+    ptr = iwing_.SetSpan(ptr, IWING_CNT, false);
+    if (is_host) {
+      ptr = ifuse_.SetSpan(ptr, FUSE_CNT, true);
+      ptr = ofuse_.SetSpan(ptr, FUSE_CNT, false);
     } else {
-      ptr = f_isd_.SetSpan(ptr, MAIN_CNT, true);
-      ptr = f_osd_.SetSpan(ptr, MAIN_CNT, false);
-      ptr = back_.SetSpan(ptr, BACK_CNT, false);
-      ptr = tail_frt_.SetSpan(ptr, TAIL_FRT, false);
-      ptr = tail_osd_.SetSpan(ptr, TAIL_SDE, true);
-      ptr = tail_isd_.SetSpan(ptr, TAIL_SDE, false);
-      ptr = tail_bck_.SetSpan(ptr, TAIL_BCK, true);
+      ptr = ofuse_.SetSpan(ptr, FUSE_CNT, true);
+      ptr = ifuse_.SetSpan(ptr, FUSE_CNT, false);
+    }
+    ptr = owing_.SetSpan(ptr, owing_cnt, false);
+    ptr = spon_.SetSpan(ptr, SPON_CNT, false);
+    ptr = stab_.SetSpan(ptr, STAB_CNT, false);
+    if (is_host) {
+      ptr = inac_.SetSpan(ptr, NCEL_CNT, true);
+      ptr = onac_.SetSpan(ptr, NCEL_CNT, false);
+    } else {
+      ptr = onac_.SetSpan(ptr, NCEL_CNT, true);
+      ptr = inac_.SetSpan(ptr, NCEL_CNT, false);
     }
   }
+
   void PushLeds() {
     SendWS2812(led_pin_, led_data, sizeof(led_data), 0xFF);
   }
+
   void PushPwm() {
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_->Set(i, pwm_val_[4 - i]); // PWM are back (idx =0) to front (idx=4)
-    }
+    pwm_->Write();
   }
   void Push() {
     PushLeds();
     PushPwm();
   }
 
-  RGB GetNavColor() {
+  RGB GetNavColor(u8_t brt) {
     switch (host_) {
     default: break;
-    case HOST: return RGB(0, spon_brt_, 0); // Green right/starboard side
-    case CLIENT: return RGB(spon_brt_, 0, 0); // Red left/port side
+    case HOST: return RGB(brt, 0, 0); // Red left/port side
+    case CLIENT: return RGB(0, brt, 0); // Green right/starboard side
     }
     return RGB(0, 0, 0);
   }
 
   // Solid mode is body on, wing edges white, sponsons R/G.
   void UpdateSolidMode() {
-    // Submodes are default = 0, simple = 1, flashy = 2
+    // Submodes are 0 - selective lights are nav
+    // 1 - all lights are static nav
+    // 2 - all lights are rolling nav
     u8_t smode = Submode();
-    if (smode != 1 && solid_state_.flash) {
-      spon_.Fill(RGBW(spon_brt_));
-      tail_osd_.Fill(RGBW(spon_brt_));
-      f_osd_.Fill(RGB(spon_brt_));
-    } else {
-      RGB nav = GetNavColor();
-      spon_.Fill(nav);
-      f_osd_.Fill(nav);
-      tail_osd_.Fill(nav);
-    }
+    RGB nav = GetNavColor(spon_brt_);
+    spon_.Fill(nav);
+    if (smode == 0) {
+      stab_.Fill(nav);
+      ofuse_.Fill(nav);
+      ifuse_.Fill(nav);
+      onac_.Fill(nav);
 
-    wing_. Fill(RGBW(brt_));
-    if (smode == 2) {
-      f_isd_. Fill(RGB(0, 0, brt_));
-      back_. Fill(RGB(brt_, 0, brt_));
+      RGBW swht(spon_brt_);
+      inac_.Fill(swht);
+      RGBW bwht(brt_);
+      owing_. Fill(bwht);
+      iwing_. Fill(bwht);
+    } else if (smode == 1) {
+      RGB nav = GetNavColor(spon_brt_);
+      stab_.Fill(nav);
+      ofuse_.Fill(nav);
+      onac_.Fill(nav);
+      owing_. Fill(nav);
+      iwing_. Fill(nav);
+      inac_.Fill(nav);
+      ifuse_.Fill(nav);
     } else {
-      f_isd_. Fill(RGB(brt_));
-      back_. Fill(GetNavColor());
+      RGBW bwht(brt_);
+      RGBW swht(spon_brt_);
+      solid_state_.SetOpOffset(0);
+      solid_state_.SetOpScale(3 << 5);
+      ofuse_.FillOp(solid_state_);
+      ifuse_.FillOp(solid_state_);
+      solid_state_.SetOpOffset(128);
+      owing_.FillOp(solid_state_);
+      solid_state_.SetOpScale(1 << 5);
+      iwing_.FillOp(solid_state_);
+      solid_state_.SetOpOffset(160);
+      solid_state_.SetOpScale(1 << 4);
+      stab_.FillOp(solid_state_);
+      solid_state_.SetOpOffset(180);
+      inac_.FillOp(solid_state_);
+      onac_.FillOp(solid_state_);
     }
-    RGBW white(spon_brt_);
-    tail_frt_.Fill(white);
-    tail_isd_.Fill(white);
-    tail_bck_.Fill(white);
 
     u8_t val = brt_;
-    switch (smode) {
-    case 0: val = brt_; break;
-    case 1: val = 0; break;
-    case 2: val = solid_state_.flash ? spon_brt_ : brt_; break;
+    u16_t pwm_val = Pca9685::Apparent2Pwm(val);
+    for (u8_t i = 0; i < 6; ++i) {
+      pwm_->SetLed(pwm_val, fuse_right_idx[i]);
+      pwm_->SetLed(pwm_val, fuse_left_idx[i]);
     }
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_val_[i] = val;
+    for (u8_t i = 0; i < 3; ++i) {
+      pwm_->SetLed(pwm_val, wing_idx[i]);
     }
   }
 
   // Color mode
   void UpdateColorMode() {
     u8_t smode = Submode();
-    RGB nav = GetNavColor();
+    RGB nav = GetNavColor(spon_brt_);
     spon_.Fill(nav);
 
     color_mode_state_.SetOpScale(1 << 6);
     color_mode_state_.SetOpOffset(0);
-    f_isd_. FillOp(color_mode_state_);
-    f_osd_.FillOp(color_mode_state_);
+    ifuse_. FillOp(color_mode_state_);
+    ofuse_.FillOp(color_mode_state_);
 
     if (smode == 1) {
-      wing_. Fill(RGBW(brt_));
-      back_.Fill(nav);
-      tail_frt_.Fill(nav);
-      tail_bck_.Fill(nav);
-      tail_isd_.Fill(nav);
-      tail_osd_.Fill(nav);
+      iwing_. Fill(RGBW(brt_));
+      owing_. Fill(RGBW(brt_));
+      stab_.Fill(nav);
+      inac_.Fill(nav);
+      onac_.Fill(nav);
     } else {
-      color_mode_state_.SetOpOffset(150);
+      color_mode_state_.SetOpOffset(100);
       color_mode_state_.SetOpScale(1 << 6);
-      wing_. FillOp(color_mode_state_);
+      owing_. FillOp(color_mode_state_);
       color_mode_state_.SetOpScale(1 << 4);  // .25
-      color_mode_state_.SetOpOffset(0);
-      back_. FillOp(color_mode_state_);
-      color_mode_state_.SetOpOffset(130);
-      tail_frt_.FillOp(color_mode_state_);
-      tail_bck_.FillOp(color_mode_state_);
-      RGBW last_pix = tail_bck_.At(tail_bck_.len() - 1);
-      tail_isd_. Fill(last_pix);
-      tail_osd_.Fill(last_pix);
+      iwing_. FillOp(color_mode_state_);
+
+      color_mode_state_.SetOpOffset(10);
+      stab_.FillOp(color_mode_state_);
+      RGBW last_pix = stab_.At(stab_.len() - 1);
+      inac_. Fill(last_pix);
+      onac_.Fill(last_pix);
     }
 
-    for (u8_t i = 0; i < NUM_PWM; ++i) {
-      pwm_val_[i] = brt_;
+    u8_t val = brt_;
+    u16_t pwm_val = Pca9685::Apparent2Pwm(val);
+    for (u8_t i = 0; i < 6; ++i) {
+      pwm_->SetLed(pwm_val, fuse_right_idx[i]);
+      pwm_->SetLed(pwm_val, fuse_left_idx[i]);
+    }
+    for (u8_t i = 0; i < 3; ++i) {
+      pwm_->SetLed(pwm_val, wing_idx[i]);
     }
   }
 
   // Pulse mode
   void UpdatePulseMode() {
+    /*
     u8_t smode = Submode();
-    RGB nav = GetNavColor();
+    RGB nav = GetNavColor(spon_brt_);
     spon_.Fill(nav);
     bool flash = pulse_mode_state_.flash();
     u8_t brt = flash ? spon_brt_ : brt_;
@@ -646,7 +766,7 @@ public:
     pwm_sum = 0;
     pwm_cnt = 0;
     for (u8_t i = 0; i < BACK_CNT; ++i) {
-      u8_t t = pulse_mode_state_.temp(MAIN_CNT + i);
+      u8_t t = pulse_mode_state_.temp(FUSE_CNT + i);
       RGB pix = Lookup5(eng_grad, t);
       Fade(&pix, spon_brt_);
       back_.At(i) = pix;
@@ -672,6 +792,7 @@ public:
                  "pwm[%02x, %02x, %02x, %02x, %02x]\n",
                  (flash ? 'T' : 'F'), pwm_idx, pwm_val_[0], pwm_val_[1],
                  pwm_val_[2], pwm_val_[3], pwm_val_[4]));
+    */
   }
 
   // lvl is overall brightness mode (off, med, hi)
@@ -702,6 +823,9 @@ public:
     ch->WriteByte(CMD_CTRL_STATE);
     state_.Send(ch, 6);
 
+    ch->WriteByte(CMD_SLD_STATE);
+    solid_state_.Send(ch, 6);
+
     ch->WriteByte(CMD_CLR_STATE);
     color_mode_state_.Send(ch, 6);
 
@@ -716,6 +840,9 @@ public:
       new_state.Receive(packet + 1, 6);
       state_change_ = state_.UpdateFromState(new_state);
     } break;
+    case CMD_SLD_STATE:
+      solid_state_.Receive(packet + 1, 6);
+      break;
     case CMD_CLR_STATE:
       color_mode_state_.Receive(packet + 1, 6);
       break;
@@ -731,7 +858,7 @@ public:
     state_change_ = 0;
     UpdateBright(state_.level, state_.brt);
     bool is_host = (host_ == HOST);
-    solid_state_.UpdateState(is_host, brt_, spon_brt_);
+    solid_state_.UpdateState(is_host, state_.thr, brt_, spon_brt_);
     color_mode_state_.UpdateState(is_host, Submode(), state_.thr, spon_brt_);
     pulse_mode_state_.UpdateState(is_host, Submode(), state_.thr);
   }
@@ -758,20 +885,19 @@ public:
   }
 
   void Rotate() {
-    wing_. Rotate();
+    iwing_. Rotate();
+    owing_. Rotate();
     spon_. Rotate();
-    back_. Rotate();
-    f_isd_. Rotate();
-    f_osd_.Rotate();
-    tail_frt_. Rotate();
-    tail_isd_. Rotate();
-    tail_osd_. Rotate();
-    tail_bck_. Rotate();
+    stab_. Rotate();
+    inac_. Rotate();
+    onac_.Rotate();
+    ofuse_. Rotate();
+    ifuse_. Rotate();
   }
 
   u8_t host_;
   PinId led_pin_;
-  Pwm* const pwm_;
+  Pca9685* const pwm_;
   u8_t state_change_;
   u8_t pwm_val_[5];
   u8_t mode_, brt_, spon_brt_;
@@ -779,15 +905,8 @@ public:
   SolidState solid_state_;
   ColorModeState color_mode_state_;
   PulseModeState pulse_mode_state_;
-  LedSpan<RGBW> wing_;
-  LedSpan<RGBW> spon_;
-  LedSpan<RGB>  back_;
-  LedSpan<RGB>  f_isd_;
-  LedSpan<RGB>  f_osd_;
-  LedSpan<RGBW> tail_frt_;
-  LedSpan<RGBW> tail_isd_;
-  LedSpan<RGBW> tail_osd_;
-  LedSpan<RGBW> tail_bck_;
+  LedSpan<RGBW> iwing_, owing_, spon_, stab_, inac_, onac_;
+  LedSpan<RGB>  ofuse_, ifuse_;
 };
 
 class StateManager {
@@ -852,12 +971,12 @@ public:
     now_ = FastTimeMs();
     u8_t now_8 = now_ >> 8;  // 1/4 seconds
     // Update state if forced,  sbus settings change or 1/4 sec has elapsed.
-    if (force_state_update || now_8 != prev_update_ ||
-        lights_->SBusUpdate(sbus) ) {
-      prev_update_ = now_8;
-      lights_->ApplyUpdatedState();
-      lights_->SendState(&ch_);
-    }
+    // if (force_state_update || now_8 != prev_update_ ||
+    //     lights_->SBusUpdate(sbus) ) {
+    //   prev_update_ = now_8;
+    //   lights_->ApplyUpdatedState();
+    //   lights_->SendState(&ch_);
+    // }
     ch_.WriteByte(CMD_UPDATE);
     ch_.WriteByte(update_cnt_);
     ch_.WriteBytes(reinterpret_cast<const u8_t*>(&now_),
@@ -939,10 +1058,16 @@ public:
   }
 
   void Run(SBus* sbus) {
-    // Check channel, will do nothing if known host.
-    CheckChannel();
-    // Check SBus, will do nothing if known client.
-    CheckSBus(sbus);
+    if (!run_) {
+      CheckSBus(sbus);
+      CheckChannel();
+      return;
+    }
+    if (host_) {
+      CheckSBus(sbus);
+    } else {
+      CheckChannel();
+    }
   }
 
 protected:
@@ -959,17 +1084,76 @@ protected:
   u8_t pls_packet_[7];
 };
 
+class PwmCmdHandler : public CmdHandler {
+public:
+  explicit PwmCmdHandler(Pca9685& pwm) :
+    CmdHandler("pwm"), pwm_(&pwm) {}
+
+  virtual void HandleLine(const char* args) {
+    int led, val;
+    int cnt = sscanf(args, "%d %d", &led, &val);
+    if (cnt != 2) {
+      DBG_LO(APP, ("Unable to scan 2 ints, found %d ints\n", cnt));
+      return;
+    }
+    pwm_->SetLed(val, led);
+    pwm_->Write();
+    for (int i = 0; i < 16; ++i) {
+      DBG_LO(APP, ("PWM[%d]: %04X\n", i, pwm_->led(i)));
+    }
+  }
+  Pca9685* pwm_;
+};
+
+class LightsCmd : public CmdHandler {
+public:
+  LightsCmd(Lights* lights)
+    : CmdHandler("lights"), lights_(lights) { }
+
+  virtual void HandleLine(const char* args) {
+    CtrlState state = lights_->State();
+    int iter = 0;
+    while (*args) {
+      while (isspace(*args)) ++args;
+      if (!args[0] || !args[1]) break;
+      int len = 0;
+      int val;
+      int cnt = sscanf(args + 2, "%d%n", &val, &len);
+      if (cnt != 1) break;
+      ++iter;
+      switch (*args) {
+      case 'm': case 'M':
+        state.mode = val;
+        break;
+      case 'l': case 'L':
+        state.level = val;
+        break;
+      case 'b': case 'B':
+        state.brt = val;
+        break;
+      case 't': case 'T':
+        state.thr = val;
+        break;
+      default:
+        break;
+      }
+      args += 2 + len;
+    }
+    if (iter != 0) {
+      lights_->ApplyState(state);
+    }
+  }
+
+private:
+  Lights* lights_;
+};
 
 int main(void)
 {
   // Do very basic chip config, in particular setup base clocks.
   Boot(/*target_pdiv=*/1, /*use_internal_32Kclk=*/true);
   SetupRtcClock(/*use_internal_32K=*/true);
-  Pwm pwm(PORT_D, 400);
-  for (u8_t i = 0; i < 5; ++i) {
-    pwm.Enable(i);
-    pwm.Set(i, 0);
-  }
+  Twi::twi.Setup(Twi::PINS_DEF, Twi::I2C_1M);
 
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
@@ -981,34 +1165,69 @@ int main(void)
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
 
-  Lights lights(LED_PIN, &pwm);
-  StateManager state_mgr(&Serial::usart1, &lights);
-
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
 
   memset(led_data, 0, sizeof(led_data));
   SendWS2812(LED_PIN, led_data, sizeof(led_data), 0xFF);
 
-  u8_t update_5 = 0;
+  Pca9685 pwm(0x80, 16);
+  pwm.Init(/*totem=*/true);
+  pwm.SetLeds(0, 0, 16);
+  pwm.Write();
+  Lights lights(LED_PIN, &pwm);
+  StateManager state_mgr(&Serial::usart1, &lights);
+
+  DbgCmds cmds(&Serial::usart0);
+  VARCMDS_INIT(cmds);
+  PwmCmdHandler pwm_cmd(pwm);
+  cmds.RegisterHandler(&pwm_cmd);
+  LightsCmd lights_cmd(&lights);
+  cmds.RegisterHandler(&lights_cmd);
+
+  state_mgr.ClaimHost();
+
   DBG_MD(APP, ("Entering Run Loop\n"));
+  u8_t update_3 = 0;
+  u8_t update_5 = 0;
   u8_t update_8 = 0;
+  u8_t phase = 0;
   while (1) {
     u16_t now = FastTimeMs();
-    const u8_t now_8 = now >> 8;
-
     state_mgr.Run(&sbus);
+
+    const u8_t now_3 = now >> 3;
+    if (now_3 == update_3) continue;
+    update_3 = now_3;
+    cmds.Run();
+
+    /*
+    for (u8_t i = 0; i < 6; ++i) {
+      u8_t offset = 255 - ((42 * i) + (i >> 1));
+      u16_t lval = pwm.Apparent2Pwm(sin8(phase + offset));
+      pwm.SetLed(lval, fuse_left[i]);
+      u16_t rval = pwm.Apparent2Pwm(sin8(phase + offset));
+      pwm.SetLed(rval, fuse_right[i]);
+    }
+    pwm.SetLed(pwm.led(4), WingCenter);
+    pwm.SetLed(pwm.led(5), Landing);
+    pwm.SetLed(pwm.led(0), WingOut);
+    */
+    pwm.Write();
+    ++phase;
 
     const u8_t now_5 = now >> 5;
     if (now_5 == update_5) continue;
     update_5 = now_5;
     state_mgr.HostUpdate(&sbus);  // Won't do anything if not known host
 
+    const u8_t now_8 = now >> 8;
     if (now_8 == update_8) continue;
     update_8 = now_8;
     u8_t phase = (now_8 & 0x07);
     u8_t pat = state_mgr.GetBlinkPattern();
     blink_pin.set(pat & (1 << phase));
+    // Serial::usart0.DumpReadBuffer();
     // if (state_mgr.IsHost()) sbus.Dump();
   }
 }

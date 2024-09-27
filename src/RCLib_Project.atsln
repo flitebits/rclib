@@ -53,6 +53,10 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "Mini7", "Mini7\Mini7.cpppro
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LogoPlaque", "LogoPlaque\LogoPlaque.cppproj", "{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LedArmature", "LedArmature\LedArmature.cppproj", "{34B1B305-F04D-44B1-87CF-3978AF993388}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "P51D", "P51D\P51D.cppproj", "{44885579-AE94-491B-BC1E-3BCFAADF0A72}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -144,6 +148,14 @@ Global
 		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Debug|AVR.Build.0 = Debug|AVR
 		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Release|AVR.ActiveCfg = Release|AVR
 		{CD851EE2-EF0B-47D6-8451-41F44F63D7D1}.Release|AVR.Build.0 = Release|AVR
+		{34B1B305-F04D-44B1-87CF-3978AF993388}.Debug|AVR.ActiveCfg = Debug|AVR
+		{34B1B305-F04D-44B1-87CF-3978AF993388}.Debug|AVR.Build.0 = Debug|AVR
+		{34B1B305-F04D-44B1-87CF-3978AF993388}.Release|AVR.ActiveCfg = Release|AVR
+		{34B1B305-F04D-44B1-87CF-3978AF993388}.Release|AVR.Build.0 = Release|AVR
+		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Debug|AVR.ActiveCfg = Debug|AVR
+		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Debug|AVR.Build.0 = Debug|AVR
+		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Release|AVR.ActiveCfg = Release|AVR
+		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

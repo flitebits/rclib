@@ -37,7 +37,7 @@
 #endif
 
 #if defined(__AVR_ATmega4809__)
-#define LED_PIN (PIN_F0)
+#define LED_PIN (PIN_C2)
 #endif
 
 #define LED_RGB (0)
@@ -53,7 +53,7 @@ using led::RGB;
 typedef led::RGB led_t;
 #endif
 
-const u8_t nLeds = 200;
+const u16_t nLeds = 320;
 led_t leds[nLeds];
 using led::Fill;
 
@@ -65,7 +65,7 @@ void UpdatePwm(Pwm& pwm, u8_t state, u8_t phase) {
 }
 
 void UpdateLeds(u8_t phase, bool solid){
-  for (int c = 0; c < (nLeds / 8); c++) {
+  for (u16_t c = 0; c < (nLeds / 8); c++) {
     int idx = c * 8;
     for (u8_t i = 0; i < 8; ++i) {
       u8_t p = solid ? 255 : phase_map[(i + phase) % 0x7];
@@ -88,10 +88,10 @@ void SetWhite(bool boost){
   Fill(leds, nLeds, pix);
 }
 
-static u8_t key_map[] = {0, 1, 3, 2 };
 
 void SetKeys(const KeyScan<2,2>& keys, bool is_white) {
 #if 0
+  static u8_t key_map[] = {0, 1, 3, 2 };
   for (u8_t i = 0; i < keys.NumKeys(); ++i) {
     if (keys.IsDown(i)) {
       if (is_white) {
@@ -106,6 +106,20 @@ void SetKeys(const KeyScan<2,2>& keys, bool is_white) {
 #endif
 }
 
+class State {
+};
+
+void ProcessCmd(State& state, u8_t* line) {
+  const u8_t kBase = 'A';
+  const u8_t kVersion =  kBase + 0;
+  u8_t *ptr = line;
+  if (*ptr != kVersion) {
+    DBG_MD(APP, ("Wrong Version: %c expecting: %c\n",
+                 *ptr, kVersion));
+    return;
+  }
+}
+
 int main(void) {
   // Do very basic chip config, in particular setup base clocks.
   Boot(/*target_pdiv=*/1, /*use_internal_32Kclk=*/true);
@@ -115,13 +129,16 @@ int main(void) {
 
   DBG_MD(APP, ("Hello World\n"));
 
+  Serial& serial = Serial::usart3;
+  serial.Setup(115200, 8, 0, 1);
+
   PinId blink_pin(BLINK_PIN);
   blink_pin.SetOutput();
 
   PinId led_pin(LED_PIN);
   led_pin.SetOutput();
 
-  Twi::twi.Setup(Twi::PINS_DEF, Twi::I2C_1M);
+  //Twi::twi.Setup(Twi::PINS_DEF, Twi::I2C_1M);
 
   // Yes I know with 2x2 you could avoid key-scan and just wire each
   // seperately, but I am using a purchased key-scan board.
@@ -140,12 +157,12 @@ int main(void) {
   u8_t phase = 0;
   UpdateLeds(false, phase);
 
-  Pca9685 pwm16(0x80, 16);
+  // Pca9685 pwm16(0x80, 16);
 
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
 
-  pwm16.Init(/*totem=*/true);
+  // pwm16.Init(/*totem=*/true);
 
   u8_t update_0 = 0;
   u8_t update_3 = 0;
@@ -159,6 +176,11 @@ int main(void) {
     DBG_MD(APP, ("2Pwm[%3d]: %4d (+%3d)\n", i, v1, (v1 - v0)));
   }
 
+  State state;
+  bool bad_data = false;
+  u8_t data_pos = 0;
+  u8_t read_data[64];
+
   u8_t pwm_state = 0;
   i16_t cnt = 255;
   i8_t add = -1;
@@ -168,15 +190,33 @@ int main(void) {
     // 1024 updates/sec
     const u8_t now_0 = now;
     if (now_0 == update_0) continue;
-   // keys.Scan();
+
+    if (serial.Avail()) {
+      u8_t rd_err;
+      u8_t ch = serial.Read(&rd_err);
+      if (rd_err) {
+        bad_data = true;
+      } else if (ch == '\r') {
+        read_data[data_pos] = 0;
+        if (!bad_data) {
+          ProcessCmd(state, read_data);
+        }
+        data_pos = 0;
+        bad_data = false;
+      } else {
+        read_data[data_pos] = ch;
+        data_pos = (data_pos + 1) & 0x3F;
+      }
+    }
+    // keys.Scan();
 
     // 128 updates/sec
     const u8_t now_3 = now >> 3;
     if (now_3 == update_3) continue;
     update_3 = now_3;
 
-    pwm16.SetLeds(Pca9685::Apparent2Pwm(cnt), 0, 3);
-    pwm16.Write();
+    // pwm16.SetLeds(Pca9685::Apparent2Pwm(cnt), 0, 3);
+    // pwm16.Write();
     cnt += add;
     if (cnt ==0 || cnt == 255) add = -add;
 
