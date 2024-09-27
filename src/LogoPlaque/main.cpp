@@ -209,8 +209,10 @@ const led_range ranges[] = {
                             {6<<5, 21, false, TAG_ROWG}, // Right Wing mid
 };
 
-const RGBW tag_clr_rgbw[][TAG_COUNT] =
-  {{ // Green Tint
+const RGBW tag_clr_rgbw[12][TAG_COUNT] =
+  {
+   // Pallete 0
+   { // Green Tint
      RGBW(0xFF),              // TAG_HEAD
      RGBW(0x00, 0xFF, 0x00),  // TAG_CNTR
      RGBW(0xFF),              // RAG_TAIL
@@ -246,6 +248,7 @@ const RGBW tag_clr_rgbw[][TAG_COUNT] =
     RGBW(0x00, 0xFF, 0x00),  // TAG_LOWG
     RGBW(0x00, 0xFF, 0x00),  // TAG_ROWG
    },
+   // Pallete 1
    {  // Blue tint
     RGBW(0xFF),              // TAG_HEAD
     RGBW(0x00, 0x00, 0xFF),  // TAG_CNTR
@@ -281,10 +284,49 @@ const RGBW tag_clr_rgbw[][TAG_COUNT] =
     RGBW(0x00, 0x00, 0xFF),  // TAG_RIWG
     RGBW(0x00, 0x00, 0xFF),  // TAG_LOWG
     RGBW(0x00, 0x00, 0xFF),  // TAG_ROWG
+   },
+   // Pallete 2
+   {  // Red tint
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0xFF, 0x00, 0x00),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF, 0x40, 0x00),  // TAG_LIWG
+    RGBW(0xFF, 0x40, 0x00),  // TAG_RIWG
+    RGBW(0xFF, 0x80, 0x00),  // TAG_LOWG
+    RGBW(0xFF, 0x80, 0x00),  // TAG_ROWG
+   },
+   { // Red heart
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0xFF, 0x00, 0x00),  // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF),              // TAG_LIWG
+    RGBW(0xFF),              // TAG_RIWG
+    RGBW(0xFF),              // TAG_LOWG
+    RGBW(0xFF),              // TAG_ROWG
+   },
+   { // All white
+    RGBW(0xFF),              // TAG_HEAD
+    RGBW(0xFF),              // TAG_CNTR
+    RGBW(0xFF),              // RAG_TAIL
+    RGBW(0xFF),              // TAG_LIWG
+    RGBW(0xFF),              // TAG_RIWG
+    RGBW(0xFF),              // TAG_LOWG
+    RGBW(0xFF),              // TAG_ROWG
+   },
+   { // All Red (not used)
+    RGBW(0xFF, 0x00, 0x00),  // TAG_HEAD
+    RGBW(0xFF, 0x00, 0x00),  // TAG_CNTR
+    RGBW(0xFF, 0x00, 0x00),  // RAG_TAIL
+    RGBW(0xFF, 0x00, 0x00),  // TAG_LIWG
+    RGBW(0xFF, 0x00, 0x00),  // TAG_RIWG
+    RGBW(0xFF, 0x00, 0x00),  // TAG_LOWG
+    RGBW(0xFF, 0x00, 0x00),  // TAG_ROWG
    }
   };
-const RGB tag_clr_rgb[][TAG_COUNT] =
-  {{ // Green Tint
+const RGB tag_clr_rgb[12][TAG_COUNT] =
+  {
+   // Pallete 0
+   { // Green Tint
     RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
     RGB(0x00, 0xFF, 0x00), // TAG_CNTR
     RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
@@ -320,6 +362,7 @@ const RGB tag_clr_rgb[][TAG_COUNT] =
     RGB(0x00, 0xFF, 0x00), // TAG_LOWG
     RGB(0x00, 0xFF, 0x00), // TAG_ROWG
    },
+   // Pallete 1
    {  // Blue tint
     RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
     RGB(0x00, 0x00, 0xFF), // TAG_CNTR
@@ -356,11 +399,48 @@ const RGB tag_clr_rgb[][TAG_COUNT] =
     RGB(0x00, 0x00, 0xFF), // TAG_LOWG
     RGB(0x00, 0x00, 0xFF), // TAG_ROWG
    },
+   // Pallete 2
+   {  // Red tint
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
+    RGB(0xFF, 0x00, 0x00), // TAG_CNTR
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
+    RGB(0xFF, 0x80, 0x00), // TAG_LIWG
+    RGB(0xFF, 0x80, 0x00), // TAG_RIWG
+    RGB(0xFF, 0x00, 0x00), // TAG_LOWG
+    RGB(0xFF, 0x00, 0x00), // TAG_ROWG
+    },
+   { // Red heart
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
+    RGB(0xFF, 0x00, 0x00), // TAG_CNTR
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_RIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LOWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_ROWG
+   },
+   { // All White
+    RGB(0xFF, 0xCC, 0xAA), // TAG_HEAD
+    RGB(0xFF, 0xCC, 0xAA), // TAG_CNTR
+    RGB(0xFF, 0xCC, 0xAA), // RAG_TAIL
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_RIWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_LOWG
+    RGB(0xFF, 0xCC, 0xAA), // TAG_ROWG
+   },
+   { // All Red (not used)
+    RGB(0xFF, 0x00, 0x00), // TAG_HEAD
+    RGB(0xFF, 0x00, 0x00), // TAG_CNTR
+    RGB(0xFF, 0x00, 0x00), // RAG_TAIL
+    RGB(0xFF, 0x00, 0x00), // TAG_LIWG
+    RGB(0xFF, 0x00, 0x00), // TAG_RIWG
+    RGB(0xFF, 0x00, 0x00), // TAG_LOWG
+    RGB(0xFF, 0x00, 0x00), // TAG_ROWG
+   },
  };
 
 class State {
 public:
-  State(u8_t mode = 0, u8_t bright = 64, u8_t speed = 32, u8_t pallete = 0)
+  State(u8_t mode, u8_t bright, u8_t speed, u8_t pallete)
     : mode_(mode), bright_(bright), speed_(speed), pallete_(pallete) { }
 
   u8_t GetMode() { return mode_; }
@@ -419,7 +499,7 @@ class Lights {
 public:
   Lights(PinId led_pin) :
     led_pin_(led_pin),
-    btn_state_(/*mode_=*/1, /*bright_=*/255, /*speed_=*/16, /*pallete_=*/0),
+    btn_state_(/*mode_=*/1, /*bright_=*/255, /*speed_=*/16, /*pallete_=*/2),
     host_state_(/*mode_=*/5, /*bright_=*/64, /*speed_=*/16, /*pallete_=*/1) {
     void* ptr = led_data;
     ptr = head_rgbw.SetSpan(ptr, HEAD_RGBW_CNT, /*reverse=*/false);
@@ -469,13 +549,13 @@ private:
     PushLeds();
   }
 
-  void UpdateFire(u8_t bright, u8_t speed, u8_t pallette) {
+  void UpdateFire(u8_t bright, u8_t speed, u8_t pallete) {
     const u16_t fire = 4 * speed; // 0-255
     const int cooling = 85 - ((50 * fire) >> 8);  // 85 - 35
     const int sparking = 50 + ((150 * fire) >> 8); // 50 - 200
-    pallette = ((pallette < 0) ? 0 : ((pallette > 2) ? 2 : pallette));
-    const RGB*  grad_rgb  = fire_grad_rgb [pallette];
-    const RGBW* grad_rgbw = fire_grad_rgbw[pallette];
+    pallete = ((pallete < 0) ? 0 : ((pallete > 2) ? 2 : pallete));
+    const RGB*  grad_rgb  = fire_grad_rgb [pallete];
+    const RGBW* grad_rgbw = fire_grad_rgbw[pallete];
     UpdateHeatMap(cooling, sparking, ARRAY_SIZE(heat_lo), heat_lo);
     UpdateHeatMap(cooling, sparking, ARRAY_SIZE(heat_ro), heat_ro);
     UpdateHeatMap(cooling, sparking, ARRAY_SIZE(heat_li), heat_li);
@@ -539,10 +619,9 @@ private:
 
   void UpdatePulse(u16_t now_ms, u8_t bright) {
     u8_t glow = sin8(pulse_saw_.Get(now_ms));
-    DBG_MD(APP, ("ms: %d glow: %d\n", now_ms, glow));
-
     glow = bscale8(glow, bright);
-    RGB wht(glow);
+    RGB wht(0xFF, 0xCC, 0xAA);
+    Fade(&wht, glow);
     RGBW wwht(glow);
     head_rgbw.Fill(wwht);
     head_rgb.Fill(wht);
