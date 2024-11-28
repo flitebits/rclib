@@ -57,6 +57,10 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "LedArmature", "LedArmature\
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "P51D", "P51D\P51D.cppproj", "{44885579-AE94-491B-BC1E-3BCFAADF0A72}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "BungieProp", "BungieProp\BungieProp.cppproj", "{5C0E6932-38C7-4A0E-B8A0-7EEE3A221F37}"
+EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "BucknellBison", "BucknellBison\BucknellBison.cppproj", "{62211FCB-67D2-494B-A330-59FB90D14C10}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -156,6 +160,14 @@ Global
 		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Debug|AVR.Build.0 = Debug|AVR
 		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Release|AVR.ActiveCfg = Release|AVR
 		{44885579-AE94-491B-BC1E-3BCFAADF0A72}.Release|AVR.Build.0 = Release|AVR
+		{5C0E6932-38C7-4A0E-B8A0-7EEE3A221F37}.Debug|AVR.ActiveCfg = Debug|AVR
+		{5C0E6932-38C7-4A0E-B8A0-7EEE3A221F37}.Debug|AVR.Build.0 = Debug|AVR
+		{5C0E6932-38C7-4A0E-B8A0-7EEE3A221F37}.Release|AVR.ActiveCfg = Release|AVR
+		{5C0E6932-38C7-4A0E-B8A0-7EEE3A221F37}.Release|AVR.Build.0 = Release|AVR
+		{62211FCB-67D2-494B-A330-59FB90D14C10}.Debug|AVR.ActiveCfg = Debug|AVR
+		{62211FCB-67D2-494B-A330-59FB90D14C10}.Debug|AVR.Build.0 = Debug|AVR
+		{62211FCB-67D2-494B-A330-59FB90D14C10}.Release|AVR.ActiveCfg = Release|AVR
+		{62211FCB-67D2-494B-A330-59FB90D14C10}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
