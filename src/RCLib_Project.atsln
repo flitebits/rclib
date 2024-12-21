@@ -61,6 +61,8 @@ Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "BungieProp", "BungieProp\Bu
 EndProject
 Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "BucknellBison", "BucknellBison\BucknellBison.cppproj", "{62211FCB-67D2-494B-A330-59FB90D14C10}"
 EndProject
+Project("{E66E83B9-2572-4076-B26E-6BE79FF3018A}") = "FlyingPorcupine", "FlyingPorcupine\FlyingPorcupine.cppproj", "{DB30748D-BE16-4131-851B-6723524DAEB2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -168,6 +170,10 @@ Global
 		{62211FCB-67D2-494B-A330-59FB90D14C10}.Debug|AVR.Build.0 = Debug|AVR
 		{62211FCB-67D2-494B-A330-59FB90D14C10}.Release|AVR.ActiveCfg = Release|AVR
 		{62211FCB-67D2-494B-A330-59FB90D14C10}.Release|AVR.Build.0 = Release|AVR
+		{DB30748D-BE16-4131-851B-6723524DAEB2}.Debug|AVR.ActiveCfg = Debug|AVR
+		{DB30748D-BE16-4131-851B-6723524DAEB2}.Debug|AVR.Build.0 = Debug|AVR
+		{DB30748D-BE16-4131-851B-6723524DAEB2}.Release|AVR.ActiveCfg = Release|AVR
+		{DB30748D-BE16-4131-851B-6723524DAEB2}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

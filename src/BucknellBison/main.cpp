@@ -296,7 +296,9 @@ public:
   State& GetState() { return state_; }
 
   void PushLeds(u8_t bright) {
-    SendWS2812(led_pin_, led_data, sizeof(led_data), bright);
+    RGB rgb(0xFF, 0, 0);
+    SendWS2812(led_pin_, &rgb, sizeof(rgb), 0xff);
+    // SendWS2812(led_pin_, led_data, sizeof(led_data), bright);
   }
 
 private:
@@ -549,7 +551,6 @@ int main(void)
 
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
-  DBG_LEVEL_MD(SBUS);
   dbg::DbgCmds cmds(&Serial::usart0);
   VARCMDS_INIT(cmds);
 
@@ -561,7 +562,7 @@ int main(void)
   rgb_led_pin.SetOutput();
 
   sei();
-  DBG_MD(APP, ("BisonPlaque: Run\n"));
+  DBG_MD(APP, ("BucknellBison: Run\n"));
 
   memset(led_data, 0, sizeof(led_data));
   SendWS2812(rgb_led_pin, led_data, sizeof(led_data), 0xFF);
