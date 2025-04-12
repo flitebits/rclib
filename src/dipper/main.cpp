@@ -249,7 +249,7 @@ struct CtrlState {
     if (change == CHG_NONE) return change;
 
     *this = other;
-    DBG_MD(APP, ("State: L:%d M:%02x B:%d T:%d\n", level, mode, brt, thr));
+    PrintState("Update");
     return change;
   }
 
@@ -266,6 +266,11 @@ struct CtrlState {
     memcpy(this, packet, sizeof(*this));
     DBG_HI(APP, ("Rcv: L:%d M:%02x B:%d T:%d\n", level, mode, brt, thr));
     return true;
+  }
+
+  void PrintState(const char* prefix) {
+    DBG_MD(APP, ("State %s: L:%d M:%02x B:%d T:%d\n",
+                 prefix, level, mode, brt, thr));
   }
 };
 
@@ -815,6 +820,8 @@ public:
 
   // Returns true if the state_ was changed.
   bool SBusUpdate(SBus* sbus) {
+    if (sbus->GetDataFrames() == 0) return false;
+
     state_change_ |= state_.Set(sbus);
     return (state_change_ != CtrlState::CHG_NONE);
   }
@@ -915,7 +922,6 @@ public:
     ch_(com),
     lights_(lights),
     now_(0), prev_update_(0), update_cnt_(0),
-    run_(false),
     host_(false),
     state_pkts_(0)
   {
@@ -925,7 +931,6 @@ public:
        /*use_pullup=*/true, /*buffered=*/true);
   }
 
-  bool IsRun() const { return run_; }
   bool IsHost() const { return host_; }
   bool IsClient() const { return !host_; }
 
@@ -934,14 +939,12 @@ public:
   u8_t GetBlinkPattern() {
     const u8_t pat_host = 0xCC; // Fast blink
     const u8_t pat_client = 0x0C; // Slow/Fast
-    const u8_t pat_search = 0x0F; // Slow blink
-    if (!run_) return pat_search;
+    // const u8_t pat_search = 0x0F; // Slow blink
     return host_ ? pat_host : pat_client;
   }
 
   void ClaimClient() {
     DBG_LO(APP, ("Claim Client!\n"));
-    run_ = true;
     host_ = false;
     lights_->SetIsHost(false);
   }
@@ -952,31 +955,31 @@ public:
       (115200, 8, Serial::PARITY_EVEN, 1, /*invert=*/false,
        /*use_alt_pins=*/false, Serial::MODE_TX,
        /*use_pullup=*/true, /*buffered=*/true);
-    run_ = true;
     host_ = true;
     lights_->SetIsHost(true);
   }
 
   void DoUpdate() {
     update_cnt_++;
-    if (!run_) return;
     lights_->Update(now_);
   }
 
   // Called roughly every 32ms (32 fps)
   void HostUpdate(SBus* sbus, bool force_state_update = false) {
-    if (!run_ || !host_) return; // Not known host so don't trigger update.
+    if (IsClient()) return; // Not known host so don't trigger update.
 
     DBG_HI(APP, ("Host Update\n"));
     now_ = FastTimeMs();
     u8_t now_8 = now_ >> 8;  // 1/4 seconds
     // Update state if forced,  sbus settings change or 1/4 sec has elapsed.
-    // if (force_state_update || now_8 != prev_update_ ||
-    //     lights_->SBusUpdate(sbus) ) {
-    //   prev_update_ = now_8;
-    //   lights_->ApplyUpdatedState();
-    //   lights_->SendState(&ch_);
-    // }
+    if (force_state_update || now_8 != prev_update_ ||
+        lights_->SBusUpdate(sbus) ) {
+      DBG_MD(APP, ("Sending State..\n"));
+      prev_update_ = now_8;
+      lights_->ApplyUpdatedState();
+      lights_->SendState(&ch_);
+    }
+
     ch_.WriteByte(CMD_UPDATE);
     ch_.WriteByte(update_cnt_);
     ch_.WriteBytes(reinterpret_cast<const u8_t*>(&now_),
@@ -986,7 +989,7 @@ public:
 
   void ProcessPacket(u8_t* packet) {
     if (packet == NULL) return;
-    DBG_HI(APP, ("Packet: %02x spkts: %d\n", packet[0], state_pkts_));
+    DBG_MD(APP, ("Packet: %02x spkts: %d\n", packet[0], state_pkts_));
     switch (packet[0]) {
     case CMD_UPDATE:
       {
@@ -1000,10 +1003,6 @@ public:
         }
 
         if (state_pkts_ == 3) {  // Process state update now.
-          if (!run_) {
-            ClaimClient();
-            update_cnt_ = host_cnt - 1;
-          }
           lights_->Receive(ctrl_packet_);
           lights_->Receive(clr_packet_);
           lights_->Receive(pls_packet_);
@@ -1039,7 +1038,8 @@ public:
   }
 
   void CheckChannel() {
-    if (run_ && host_) return;  // Not reading from host.
+    if (IsHost()) return;  // Not reading from host because this is the host...
+
     while (ch_.DoRead()) {
       u8_t* packet = ch_.GetPacket();
       if (packet == NULL) continue;
@@ -1048,21 +1048,11 @@ public:
   }
 
   void CheckSBus(SBus* sbus) {
-    if (run_ && !host_) return;  // Not reading from SBus
-    if (!sbus->Run()) return;  // No data from SBus
-
-    if (!run_) {
-      ClaimHost(); // We got SBus packet, thus we are host
-      HostUpdate(sbus, /*force_state_update=*/true);
-    }
+    if (IsClient()) return;  // Client doesn't read from SBus
+    sbus->Run();
   }
 
   void Run(SBus* sbus) {
-    if (!run_) {
-      CheckSBus(sbus);
-      CheckChannel();
-      return;
-    }
     if (host_) {
       CheckSBus(sbus);
     } else {
@@ -1076,7 +1066,6 @@ protected:
   u16_t now_;
   u8_t prev_update_;
   u8_t update_cnt_;
-  bool run_;
   bool host_;
   u8_t state_pkts_;
   u8_t ctrl_packet_[7];
@@ -1158,12 +1147,18 @@ int main(void)
   DBG_INIT(Serial::usart0, 115200);
   DBG_LEVEL_MD(APP);
   DBG_LEVEL_HI(SBUS);
-  SBus sbus(&Serial::usart3, /*invert=*/true);
+  SBus sbus(&Serial::usart1, /*invert=*/true);
 
+  // The host pin is shorted to ground on the host, so setting
+  // it for input with the pullup resitor enabled means it will
+  // read high on the client and low on the host.
+  PinId host_pin(PIN_C7);
+  host_pin.SetInput(/*inverted=*/false, /*pullup=*/true);
   PinId led_pin(LED_PIN);
   led_pin.SetOutput();
   PinId blink_pin(PIN_F2);
   blink_pin.SetOutput();
+
 
   sei();
   DBG_MD(APP, ("Hello World: Test\n"));
@@ -1176,7 +1171,7 @@ int main(void)
   pwm.SetLeds(0, 0, 16);
   pwm.Write();
   Lights lights(LED_PIN, &pwm);
-  StateManager state_mgr(&Serial::usart1, &lights);
+  StateManager state_mgr(&Serial::usart3, &lights);
 
   DbgCmds cmds(&Serial::usart0);
   VARCMDS_INIT(cmds);
@@ -1185,13 +1180,17 @@ int main(void)
   LightsCmd lights_cmd(&lights);
   cmds.RegisterHandler(&lights_cmd);
 
-  state_mgr.ClaimHost();
+  if (host_pin.in()) {
+    state_mgr.ClaimClient();
+  } else {
+    state_mgr.ClaimHost();
+  }
+  host_pin.SetOutput();  // Disable pin, we don't need it anymore.
 
   DBG_MD(APP, ("Entering Run Loop\n"));
   u8_t update_3 = 0;
   u8_t update_5 = 0;
   u8_t update_8 = 0;
-  u8_t phase = 0;
   while (1) {
     u16_t now = FastTimeMs();
     state_mgr.Run(&sbus);
@@ -1200,21 +1199,6 @@ int main(void)
     if (now_3 == update_3) continue;
     update_3 = now_3;
     cmds.Run();
-
-    /*
-    for (u8_t i = 0; i < 6; ++i) {
-      u8_t offset = 255 - ((42 * i) + (i >> 1));
-      u16_t lval = pwm.Apparent2Pwm(sin8(phase + offset));
-      pwm.SetLed(lval, fuse_left[i]);
-      u16_t rval = pwm.Apparent2Pwm(sin8(phase + offset));
-      pwm.SetLed(rval, fuse_right[i]);
-    }
-    pwm.SetLed(pwm.led(4), WingCenter);
-    pwm.SetLed(pwm.led(5), Landing);
-    pwm.SetLed(pwm.led(0), WingOut);
-    */
-    pwm.Write();
-    ++phase;
 
     const u8_t now_5 = now >> 5;
     if (now_5 == update_5) continue;

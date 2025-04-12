@@ -22,7 +22,7 @@ namespace {
 
 SBus::SBus(Serial* serial, bool invert) :
   serial_(serial),
-  idx_(0), failSafe_(false), bytes_read_(0), frames_(0) {
+  idx_(0), failSafe_(true), bytes_read_(0), frames_(0) {
   serial_->Setup(100000, 8, Serial::PARITY_EVEN, 2, invert,
                  /*use_alt_pins=*/false, Serial::MODE_RX);
   serial_->SetBuffered(true);

@@ -20,6 +20,7 @@
 #include "leds/Effects.h"
 #include "leds/FPMath.h"
 #include "leds/Hsv.h"
+#include "leds/LedSpan.h"
 #include "leds/Pixel.h"
 #include "leds/Rgb.h"
 #include "Pins.h"
@@ -43,17 +44,28 @@
 #define LED_RGB (0)
 #define LED_RGBW (1)
 
-#define LED_TYPE (LED_RGBW)
+#define LED_TYPE (LED_RGB)
+
+using led::RGB;
+using led::RGBW;
 
 #if (LED_TYPE == LED_RGBW)
-using led::RGBW;
 typedef led::RGBW led_t;
 #else
-using led::RGB;
 typedef led::RGB led_t;
 #endif
 
-const u16_t nLeds = 320;
+
+#define TIP_LEDS ((4 + 5) * 3 + 1)
+#define WING_LEDS (7 + 7 + 9)
+
+u8_t led_data[WING_LEDS * 4 * 4 + TIP_LEDS * 3 * 2];
+
+LedSpan<RGBW> wing_out(led_data, WING_LEDS);
+LedSpan<RGB> wing_tip(wing_out.next_ptr(), TIP_LEDS);
+LedSpan<RGBW> wing_in(wing_tip.next_ptr(), WING_LEDS);
+
+const u16_t nLeds = (TIP_LEDS);
 led_t leds[nLeds];
 using led::Fill;
 
@@ -64,11 +76,28 @@ void UpdatePwm(Pwm& pwm, u8_t state, u8_t phase) {
   }
 }
 
+static const RGB kRgbWht(0xFF, 0xCC, 0x88);
+
 void UpdateLeds(u8_t phase, bool solid){
+  RGB clr;
+  RGBW clrw;
+
+  phase = phase >> 4;
+  switch (phase & 0x3) {
+  case 0: clr = RGB(0xFF, 0, 0); clrw = clr; break;
+  case 1: clr = RGB(0, 0xFF, 0); clrw = clr; break;
+  case 2: clr = RGB(0, 0, 0xFF); clrw = clr; break;
+  case 3: clr = kRgbWht; clrw = RGBW(0xFF); break;
+  }
+  wing_out.Fill(clrw);
+  wing_tip.Fill(clr);
+  wing_in.Fill(clrw);
+
+  /*
   for (u16_t c = 0; c < (nLeds / 8); c++) {
     int idx = c * 8;
     for (u8_t i = 0; i < 8; ++i) {
-      u8_t p = solid ? 255 : phase_map[(i + phase) % 0x7];
+       u8_t p = solid ? 255 : phase_map[(i + phase) % 0x7];
 #if (LED_TYPE == LED_RGBW)
       leds[idx + i] = led::HsvToRgbw(led::HSV(c * 50, 255, p));
 #else
@@ -76,6 +105,7 @@ void UpdateLeds(u8_t phase, bool solid){
 #endif
     }
   }
+  */
 }
 
 void SetWhite(bool boost){
@@ -155,7 +185,7 @@ int main(void) {
   }
 
   u8_t phase = 0;
-  UpdateLeds(false, phase);
+  UpdateLeds(phase, false);
 
   // Pca9685 pwm16(0x80, 16);
 
@@ -261,7 +291,7 @@ int main(void) {
       break;
     }
     // SetKeys(keys, true);
-    SendWS2812(led_pin, leds, sizeof(leds), 0xFF);
+    SendWS2812(led_pin, led_data, sizeof(led_data), 0x10);
 
     // 4 updates/sec
     u8_t now_8 = now >> 8;

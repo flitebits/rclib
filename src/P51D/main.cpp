@@ -57,9 +57,9 @@ using led::sin8;
 #define LIGHT_BRIGHT_CH   (10)  // Adjust leading edge light brightness.
 
 #define NUM_PWM (3)
-#define WING_OUT_CNT (16)
-#define WING_TIP_CNT (15 + 12)
-#define WING_RTN_CNT (14)
+#define WING_OUT_CNT (7 + 7 + 9)
+#define WING_TIP_CNT ((4 + 5) * 3 + 1)
+#define WING_RTN_CNT (7 + 7 + 9)
 #define TAIL_CNT (12)
 
 #define RGBW_CNT (2 * (WING_OUT_CNT + WING_RTN_CNT) + TAIL_CNT)
@@ -270,7 +270,7 @@ public:
     ptr = lt_wing_.SetSpan(ptr, WING_TIP_CNT, false);
     ptr = li_wing_.SetSpan(ptr, WING_RTN_CNT, true);
 
-    ptr = ro_wing_.SetSpan(ptr, WING_OUT_CNT - 1, false);
+    ptr = ro_wing_.SetSpan(ptr, WING_OUT_CNT, false);
     ptr = rt_wing_.SetSpan(ptr, WING_TIP_CNT, false);
     ptr = ri_wing_.SetSpan(ptr, WING_RTN_CNT, true);
 
@@ -378,8 +378,8 @@ public:
     RGBW tblend = tclr;
     tblend.wht = brt_;
 
-    // Can't really show green so keep off...
-
+    lt_wing_.Fill(RGBW(lvl_, 0, 0));
+    rt_wing_.Fill(RGBW(0, lvl_, 0));
     switch (smode) {
     case 0:
       lo_wing_.Fill(lclr);
@@ -387,8 +387,6 @@ public:
       ro_wing_.Fill(rclr);
       ri_wing_.Fill(rclr);
       tail_.Fill(tclr);
-      lt_wing_.Fill(led::clr::black);
-      rt_wing_.Fill(led::clr::black);
       break;
     case 1:
       lo_wing_.Fill(lblend);
@@ -396,8 +394,6 @@ public:
       ro_wing_.Fill(rblend);
       ri_wing_.Fill(rblend);
       tail_.Fill(tblend);
-      lt_wing_.Fill(led::clr::black);
-      rt_wing_.Fill(led::clr::black);
       break;
     case 2:
       lo_wing_.Fill(lblend, 0, 6);
@@ -410,8 +406,6 @@ public:
       ri_wing_.Fill(rclr, 5);
       ri_wing_.Fill(rblend, 0, 5);
       tail_.Fill(tblend);
-      lt_wing_.Fill(RGBW(lvl_, 0, 0));
-      rt_wing_.Fill(RGBW(0, lvl_, 0));
       break;
     }
 
@@ -433,17 +427,11 @@ public:
     tail_.FillOp(color_state_);
     ro_wing_.FillOp(color_state_);
     ri_wing_.FillOp(color_state_);
-    if (smode == 0) {
-      // Can't really show green so keep off...
-      lt_wing_.Fill(led::clr::black);
-      rt_wing_.Fill(led::clr::black);
-    } else {
-      RGBW fwht = RGBW(lvl_);
-      RGBW lclr = (smode == 2 && solid_state_.flash) ? fwht : RGBW(lvl_, 0, 0);
-      RGBW rclr = (smode == 2 && solid_state_.flash) ? fwht : RGBW(0, lvl_, 0);
-      lt_wing_.Fill(lclr);
-      rt_wing_.Fill(rclr);
-    }
+    RGBW fwht = RGBW(lvl_);
+    RGBW lclr = (smode == 2 && solid_state_.flash) ? fwht : RGBW(lvl_, 0, 0);
+    RGBW rclr = (smode == 2 && solid_state_.flash) ? fwht : RGBW(0, lvl_, 0);
+    lt_wing_.Fill(lclr);
+    rt_wing_.Fill(rclr);
 
     u8_t val = brt_;
     if (smode == 2 && solid_state_.flash) {
