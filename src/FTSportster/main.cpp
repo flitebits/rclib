@@ -21,6 +21,7 @@
 #include "Pwm.h"
 #include "Rand.h"
 #include "Serial.h"
+#include "RcChannels.h"
 #include "SBus.h"
 #include "SportSensor.h"
 #include "Util.h"
@@ -374,8 +375,8 @@ int main(void)
     if (sbus.Run()) {
 	  DBG_LO(APP, ("Got SBus\n"));
       // Run returns true of a new frame of channel data was received
-      leds.UpdateMode(SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH)),
-                      SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
+      leds.UpdateMode(ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH)),
+                      ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
                       sbus.GetChannel(LIGHT_BRIGHT_CH),
                       sbus.GetChannel(LIGHT_THROTTLE_CH));
     }

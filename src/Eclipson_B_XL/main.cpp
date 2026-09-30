@@ -27,6 +27,7 @@
 #include "Pca9685.h"
 #include "Pins.h"
 #include "Pwm.h"
+#include "RcChannels.h"
 #include "SBus.h"
 #include "Serial.h"
 #include "Twi.h"
@@ -80,9 +81,9 @@ struct CtrlState {
     : mode(m), level(l), brt(b), thr(t) { }
 
   u8_t Set(SBus* sbus) {
-    u8_t mode = (SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2);
+    u8_t mode = (ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2);
     CtrlState new_state(mode,
-                        SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
+                        ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
                         sbus->GetChannel(LIGHT_BRIGHT_CH),
                         sbus->GetChannel(LIGHT_THROTTLE_CH)
                         );

@@ -10,7 +10,7 @@
 #define _SBUS_
 
 #include "IntTypes.h"
-#include "RtcTime.h"
+#include "RcChannels.h"
 #include "Serial.h"
 
 class SBus {
@@ -21,13 +21,13 @@ public:
   // was completed and the channel values are updated.
   bool Run();
 
-  bool FailSafe() const { return failSafe_; }
+  RcChannels& GetChannels() { return channels_; }
+  
+  bool FailSafe() const { return channels_.FailSafe(); }
   // The value for one channel.
-  u16_t GetChannel(int ch) const { return rcVal_[ch];}
-
-  // Convert RC channel value to three position switch values (0-2)
-  // threshold is where values change.
-  static u8_t ThreePosSwitch(i16_t val, i16_t threshold = 667);
+  u16_t GetChannel(int ch) const {
+    return channels_.GetChannel(ch);
+  }
 
   int GetBytesRead() const { return bytes_read_; }
   int GetDataFrames() const { return frames_; }
@@ -44,10 +44,10 @@ private:
   u8_t data_[32];  // Last 32 samples read from serial port
   u8_t time_[32];  // The time the last 32 bytes were read for frame detection
 
-  bool failSafe_;  // True if receiver is in failsafe mode
-  u16_t rcVal_[16];  // The most recent values for each channel
   u16_t bytes_read_;  // Total number of bytes read (for debugging)
   u16_t frames_;  // Total number of frames decoded (for debugging)
+
+  RcChannels channels_;
 };
 
 #endif  // _SBUS_

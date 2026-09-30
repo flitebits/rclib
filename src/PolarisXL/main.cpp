@@ -78,7 +78,7 @@ public:
   bool Update(const SBus& sbus) {
     static u8_t prev_brightness = 0;
     u8_t brightness;
-    u8_t lvl = SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_ON_CH));
+    u8_t lvl = ThreePosSwitch(sbus.GetChannel(LIGHT_ON_CH));
     switch (lvl) {
     default: brightness = 0x00; break;
     case  1: brightness = 0x40; break;
@@ -99,7 +99,7 @@ public:
       tail_.Fill(RGB(b, b, b));
     }
 
-    const u8_t mode = SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH));
+    const u8_t mode = ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH));
     static u8_t prev_mode = -1;
     if (mode != prev_mode) {
       memset(led_map, 0, NUM_LEDS);

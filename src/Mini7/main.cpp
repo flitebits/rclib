@@ -91,10 +91,10 @@ struct CtrlState {
   u8_t Mode() const { return mode >> 2; }
   u8_t Submode() const { return mode & 0x03; }
   u8_t Set(SBus* sbus) {
-    u8_t mode = ((SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2) |
-                 SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_SUBMODE_CH)));
+    u8_t mode = ((ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2) |
+                 ThreePosSwitch(sbus->GetChannel(LIGHT_SUBMODE_CH)));
     CtrlState new_state(mode,
-                        SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
+                        ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
                         sbus->GetChannel(LIGHT_BRIGHT_CH),
                         sbus->GetChannel(LIGHT_THROTTLE_CH)
                         );

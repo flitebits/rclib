@@ -10,6 +10,9 @@
 #define _LED_FPMATH_
 
 #include "../IntTypes.h"
+
+#define RND_SHIFT(X, BITS) ((X + (1 << (BITS - 1))) >> BITS)
+
 namespace led {
 
 // Faster version of (v0 * v1) >> 8, can be used to 'scale' one 8bit

@@ -8,6 +8,7 @@
 
 #include "Pca9685.h"
 
+#include "Dbg.h"
 #include "Twi.h"
 
 namespace {
@@ -32,6 +33,7 @@ u16_t Pca9685::Apparent2Pwm(u8_t apparent) {
 }
 
 void Pca9685::Init(bool totem) {
+  DBG_HI(APP, ("Pca9685 Init:\n"));
   memset(leds_, 0, sizeof(leds_));
   u8_t idx = 0;
   cmd_buf_[idx++] = 0x00; // Register: zero (MODE1)
@@ -43,6 +45,7 @@ void Pca9685::Init(bool totem) {
 }
 
 void Pca9685::Write() {
+  DBG_HI(APP, ("Pca9685 Write:\n"));
   Twi::twi.WaitForIdle();
   u8_t idx = 0;
   cmd_buf_[idx++] = 6 + (start_led_idx_ * 4);  // First Led register...

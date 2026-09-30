@@ -50,7 +50,7 @@ public:
     Entry e = {id, p, scan, print, TYPE_BOOL};
     Add(&e);
   }
-  void RegisterChar(const char* id, u8_t* ptr, const char* scan,
+  void RegisterU8(const char* id, u8_t* ptr, const char* scan,
                 const char* print) {
     ptr_types p;
     p.c = ptr;
@@ -195,10 +195,10 @@ public:
   VarRegistry::singleton.Register(#name, &name, "%c", "%c");
 
 #define DEFVAR_U8T(name, init) u8_t name = (init); do {     \
-  VarRegistry::singleton.Register(#name, &name, "%d", "%d"); \
+  VarRegistry::singleton.RegisterU8(#name, &name, "%d", "%d"); \
 } while(false)
 #define REFVAR_U8T(name) \
-  VarRegistry::singleton.Register(#name, &name, "%d", "%d");
+  VarRegistry::singleton.RegisterU8(#name, &name, "%d", "%d");
 
 }  // namespace dbg
 

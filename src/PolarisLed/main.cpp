@@ -300,8 +300,8 @@ int main(void)
     sport.Run();
     if (sbus.Run()) {
         // Run returns true of a new frame of channel data was recieved
-      lights.UpdateMode(SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_SET_CH)),
-                        SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
+      lights.UpdateMode(ThreePosSwitch(sbus.GetChannel(LIGHT_SET_CH)),
+                        ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH)),
                         sbus.GetChannel(LIGHT_BRIGHT_CH),
                         sbus.GetChannel(LIGHT_THROTTLE_CH));
     }

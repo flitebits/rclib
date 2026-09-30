@@ -15,8 +15,9 @@
 #include "IntTypes.h"
 
 namespace dbg {
-  enum Topic { APP, DBG, ADC, DSHOT, LED, SBUS, SPI, SPORT, NUM_TOPIC };
-  // LO = low frequent prints only
+  enum Topic { APP, DBG, ADC, DSHOT, LED, SBUS, SPI, SPORT, TWI,
+	       NUM_TOPIC };
+  // LO = low frequency prints only
   // MD = medium + low frequency print
   // HI = all prints.
   enum Level { OFF=0, LO, MD, HI, };
@@ -29,7 +30,8 @@ namespace dbg {
     // Set verbosity level for a topic (default is zero).
     void SetLevel(Topic topic, Level lvl) {
       while (topic >= 16);  // only supports up to 16 topics
-      state_ = (state_ & ~(0x3 << (2 * topic))) | (lvl << (2 * topic));
+      state_ = (state_ & ~(((u32_t)0x3) << (2 * topic))) |
+	(((u32_t)lvl) << (2 * topic));
     }
     bool Check(Topic topic, Level lvl) {
       return lvl <= ((state_ >> (2 * topic)) & 0x3);

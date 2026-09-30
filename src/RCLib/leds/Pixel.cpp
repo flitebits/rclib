@@ -146,7 +146,7 @@ RGBW Lookup9(const RGBW* gradient, u8_t offeset) {
 }
   
 RGB HsvToRgb(const HSV& hsv) {
-  int hue_fp = hsv.hue * 6;  // 8bit FP 0->6
+  int hue_fp = int(hsv.hue) * 6;  // 8bit FP 0->6
 
   int hue_idx = hue_fp >> 8;
   const RGB& lo = hues[hue_idx];
@@ -158,7 +158,7 @@ RGB HsvToRgb(const HSV& hsv) {
   result.grn = lo.grn + (((hi.grn - i16_t(lo.grn)) * frac) >> 8);
   result.blu = lo.blu + (((hi.blu - i16_t(lo.blu)) * frac) >> 8);
 
-  volatile u8_t scale = (hsv.sat * (int(hsv.val) + 1)) >> 8;
+  volatile u8_t scale = ((int(hsv.sat) + 1) * hsv.val) >> 8;
   const u8_t grey = hsv.val - scale;
   result.red = scale8(result.red, scale) + grey;
   result.grn = scale8(result.grn, scale) + grey;

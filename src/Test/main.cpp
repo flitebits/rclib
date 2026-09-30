@@ -44,7 +44,7 @@
 #define LED_RGB (0)
 #define LED_RGBW (1)
 
-#define LED_TYPE (LED_RGB)
+#define LED_TYPE (LED_RGBW)
 
 using led::RGB;
 using led::RGBW;
@@ -200,11 +200,11 @@ int main(void) {
   u8_t update_6 = 0;  // ~16 updates/sec
   u8_t update_8 = 0;  // ~4 updates/sec
 
-  for (int i = 1; i < 255; ++i) {
-    u16_t v0 = Pca9685::Apparent2Pwm(i - 1);
-    u16_t v1 = Pca9685::Apparent2Pwm(i);
-    DBG_MD(APP, ("2Pwm[%3d]: %4d (+%3d)\n", i, v1, (v1 - v0)));
-  }
+  // for (int i = 1; i < 255; ++i) {
+  //   u16_t v0 = Pca9685::Apparent2Pwm(i - 1);
+  //   u16_t v1 = Pca9685::Apparent2Pwm(i);
+  //   DBG_MD(APP, ("2Pwm[%3d]: %4d (+%3d)\n", i, v1, (v1 - v0)));
+  // }
 
   State state;
   bool bad_data = false;
@@ -260,7 +260,7 @@ int main(void) {
     if (now_6 == update_6) continue;
     update_6 = now_6;
 
-    UpdatePwm(pwm, pwm_state, phase);
+    // UpdatePwm(pwm, pwm_state, phase);
     // DBG_MD(APP, ("Keys: 0x%08lx\n", keys.State()));
     /*
     u8_t led0_seq[5] = {0x0A, 0x00, 0x00, 0x00, 0x00};

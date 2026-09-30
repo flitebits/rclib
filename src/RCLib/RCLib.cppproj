@@ -191,6 +191,12 @@
     <Compile Include="Boot.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="Crsf.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="Crsf.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="Dbg.cpp">
       <SubType>compile</SubType>
     </Compile>
@@ -273,6 +279,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="Rand.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="RcChannels.cpp">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="RcChannels.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="RtcTime.cpp">

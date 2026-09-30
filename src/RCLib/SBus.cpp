@@ -12,8 +12,8 @@
 
 namespace {
   const int sbus_max_val = 2047;
-  const int sbus_surr = 172;
-  const long sbus_scale = (2047L << 16) / 1640;
+  const int kSbusMin = 172;
+  const int kSbusMax = 1812;
   int sbus_err = 0;
   void memset(u8_t* ptr, u8_t val, int len) {
     while (len--) (*ptr++) = val;
@@ -22,7 +22,7 @@ namespace {
 
 SBus::SBus(Serial* serial, bool invert) :
   serial_(serial),
-  idx_(0), failSafe_(true), bytes_read_(0), frames_(0) {
+  idx_(0), bytes_read_(0), frames_(0) {
   serial_->Setup(100000, 8, Serial::PARITY_EVEN, 2, invert,
                  /*use_alt_pins=*/false, Serial::MODE_RX);
   serial_->SetBuffered(true);
@@ -30,17 +30,9 @@ SBus::SBus(Serial* serial, bool invert) :
 }
 
 void SBus::Dump() const {
-  DBG_LO(SBUS, ("SBus: %d/%d-%d", GetDataFrames(), GetBytesRead(), sbus_err));
-  for (int i=0; i<16; ++i) {
-    DBG_LO(SBUS, (" 0x%x", GetChannel(i)));
-  }
-  DBG_LO(SBUS, ("%c\n", FailSafe() ? 'F' : '-'));
-}
-
-u8_t SBus::ThreePosSwitch(i16_t val, i16_t threshold) {
-  if (val <= threshold) return 0;
-  if (val >= (sbus_max_val - threshold)) return 2;
-  return 1;
+  DBG_LO(SBUS, ("SBus: %d/%d-%d",
+		GetDataFrames(), GetBytesRead(), sbus_err));
+  channels_.Dump();
 }
 
 // Stitches 11 bits out of the data array at the given offeset.
@@ -93,18 +85,16 @@ bool SBus::Run() {
     u8_t elapsed = read_time - time_[start_idx];
     if (elapsed > 4) continue;
 
-    failSafe_ = (data_[(start_idx + 23) & (0x1F)] & (0x3 << 2));
-    int start_bit = 0;
-    for (int i=0; i < 16; i++) {
-      int val = GetBits(start_idx + 1, start_bit);
-      if (val <= sbus_surr) val = 0;
-      else val -= sbus_surr;
-      val = (val * sbus_scale) >> 16;
-      if (val > sbus_max_val) val = sbus_max_val;
-      rcVal_[i] = val;
-      start_bit += 11;
+    channels_.SetFailSafe(data_[(start_idx + 23) & (0x1F)] & (0x3 << 2));
+    // channel wraps in data_ so fix that
+    u8_t raw_ch[22];
+    for (int i = 0; i < 16; ++i) {
+      raw_ch[i] = data_[(start_idx + 1 + i) & 0x1F];
     }
+    channels_.ChannelsUnpack(raw_ch, 16);
+    channels_.RescaleChannels(kSbusMin, kSbusMax);
     memset(data_, 0xFF, sizeof(data_));
+    idx_ = 0;
     ++frames_;
     return true;
   }

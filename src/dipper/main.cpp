@@ -110,12 +110,6 @@ bool IsStateCmd(u8_t cmd) {
   return (cmd & CMD_TYPE_MSK) == CMD_STATE;
 }
 
-static RGB eng_grad[5] = { RGB(0x00, 0x00, 0x00),
-                           RGB(0x40, 0x00, 0x00),
-                           RGB(0x80, 0x20, 0x00),
-                           RGB(0xFF, 0x80, 0x00),
-                           RGB(0xFF, 0xFF, 0x80) };
-
 // This class uses a packet structure that starts with a key byte that
 // signals the start of a packet by having it's high bit set, no other bytes
 // will have their high bits set.  The structure of the key byte is:
@@ -230,10 +224,10 @@ struct CtrlState {
     : mode(m), level(l), brt(b), thr(t) { }
 
   u8_t Set(SBus* sbus) {
-    u8_t mode = ((SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2) |
-                 SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_SUBMODE_CH)));
+    u8_t mode = ((ThreePosSwitch(sbus->GetChannel(LIGHT_MODE_CH)) << 2) |
+                 ThreePosSwitch(sbus->GetChannel(LIGHT_SUBMODE_CH)));
     CtrlState new_state(mode,
-                        SBus::ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
+                        ThreePosSwitch(sbus->GetChannel(LIGHT_LEVEL_CH)),
                         sbus->GetChannel(LIGHT_BRIGHT_CH),
                         sbus->GetChannel(LIGHT_THROTTLE_CH)
                         );

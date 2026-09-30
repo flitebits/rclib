@@ -353,8 +353,8 @@ int main(void)
     const u16_t now = FastTimeMs();
     if (sbus.Run()) {
 	    // Run returns true of a new frame of channel data was received
-	    u8_t level = SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH));
-	    u8_t mode = SBus::ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH));
+	    u8_t level = ThreePosSwitch(sbus.GetChannel(LIGHT_LEVEL_CH));
+	    u8_t mode = ThreePosSwitch(sbus.GetChannel(LIGHT_MODE_CH));
 	    int brt = sbus.GetChannel(LIGHT_BRIGHT_CH);
 	    int thr = sbus.GetChannel(LIGHT_THROTTLE_CH);
 	    lights.UpdateMode(now, mode, level, brt, thr);

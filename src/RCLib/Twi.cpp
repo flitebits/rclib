@@ -63,9 +63,12 @@ ISR(TWI0_TWIM_vect) {
 }
 
 Twi::Twi()
-  : error_(false), state_(TWI_STATE_IDLE), len_(0), idx_(0), data_ptr_(NULL) {}
+  : error_(false), state_(TWI_STATE_IDLE), len_(0), idx_(0), data_ptr_(NULL) {
+  DBG_HI(TWI, ("TWI Init\n"));
+}
 
 void Twi::step() {
+  DBG_HI(TWI, ("TWI Step: state %d\n", state_));
   switch(state_) {
   case TWI_STATE_IDLE: TWI0.MSTATUS = TWI_WIF_bm; break;
 
@@ -73,7 +76,7 @@ void Twi::step() {
     if ((TWI0.MSTATUS & (TWI_RXACK_bm | TWI_BUSERR_bm | TWI_ARBLOST_bm)) != 0) {
       error_ = true;
       state_ = TWI_STATE_IDLE;
-      DBG_MD(APP, ("TWI Bytes, error MSTATUS: %d\n", TWI0.MSTATUS));
+      DBG_MD(TWI, ("TWI Bytes, error MSTATUS: %d\n", TWI0.MSTATUS));
       break;
     }
     u8_t idx = idx_;
@@ -95,6 +98,7 @@ void Twi::Setup(Twi::TwiPinOpt pins, Twi::TwiStdClk std_clk) {
   Setup(pins, StdClkTokHz(std_clk));
 }
 void Twi::Setup(Twi::TwiPinOpt pins, u16_t tgt_kHz) {
+  DBG_MD(TWI, ("TWI setup: pins: %d \n", pins));
   u8_t port_mux;
   switch (pins) {
   case PINS_DEF:  port_mux = PORTMUX_TWI0_DEFAULT_gc; break;
@@ -107,7 +111,7 @@ void Twi::Setup(Twi::TwiPinOpt pins, u16_t tgt_kHz) {
   SetBaud(tgt_kHz);
 
   TWI0.CTRLA = (TWI_SDASETUP_4CYC_gc | TWI_SDAHOLD_OFF_gc
-                /*| (((tgt_kHz < 999)?1:0) << TWI_FMPEN_bp)*/);
+                | (((tgt_kHz < 999)?1:0) << TWI_FMPEN_bp));
   TWI0.DUALCTRL = 0;
 
   TWI0.MCTRLB = TWI_FLUSH_bm;
@@ -118,10 +122,12 @@ void Twi::Setup(Twi::TwiPinOpt pins, u16_t tgt_kHz) {
 }
 
 void Twi::WaitForIdle() {
+  DBG_HI(TWI, ("TWI WaitForIdle: %d \n", state_));
   while(state_ != TWI_STATE_IDLE);
 }
 
 void Twi::MasterSendBytes(u8_t addr, const u8_t* data, int len) {
+  DBG_HI(TWI, ("TWI MasterSendBytes: %d \n", addr));
   WaitForIdle();
   if ((TWI0.MSTATUS & TWI_BUSSTATE_gm) == 0) {
     TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
@@ -130,6 +136,6 @@ void Twi::MasterSendBytes(u8_t addr, const u8_t* data, int len) {
   data_ptr_ = data;
   len_ = len;
   idx_ = 0;
-  TWI0.MADDR = (addr & 0xFE); // clear low bit 0 = W, 1 = R
   state_ = TWI_STATE_BYTES;
+  TWI0.MADDR = (addr & 0xFE); // clear low bit 0 = W, 1 = R
 }
