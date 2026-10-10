@@ -25,11 +25,15 @@ class Crsf {
   // Read any data available on serial port, returns true if a frame
   // was completed and the channel values are updated.
   bool Run();
-
+  // Runs registered handlers until one of then returns true then
+  // returns true.  If no handler returns true this returns false.
   bool RunHandlers();
-  
+
+  // Registers handler to be called from RunHandlers.  Passed
+  // handler must outlive this object.
   void AddHandler(CrsfFrameHandler* handler);
 
+  // Print debug info
   void Dump() const;
 
  protected:
@@ -53,6 +57,7 @@ class CrsfFrameHandler {
     next_handler_ = handler;
   }
 
+  // Returns true if this handler handled the payload.
   virtual bool HandleFrame(u8_t type, u8_t len, u8_t* payload) = 0;
 
  protected:
@@ -62,9 +67,13 @@ class CrsfFrameHandler {
 
 class CrsfRcHandler : public CrsfFrameHandler {
  public:
+  static const u8_t kType = 0x16;
   static const u8_t kExpectedLen = 22;
- CrsfRcHandler() : CrsfFrameHandler(0x16) { }
+  CrsfRcHandler() : CrsfFrameHandler(kType) { }
+
   u16_t GetChannel(u8_t ch) const { return channels_.GetChannel(ch); }
+  const RcChannels& GetChannels() const { return channels_; }
+  
   virtual bool HandleFrame(u8_t type, u8_t len, u8_t* payload);
   void Dump() const;
 

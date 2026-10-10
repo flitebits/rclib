@@ -119,7 +119,7 @@ bool Crsf::Run() {
       idx_ = 0;
       continue;
     }
-    DBG_LO(SBUS, ("Crsf Frame sync: 0x%02X type: 0x%02X len: %d\n",
+    DBG_HI(SBUS, ("Crsf Frame sync: 0x%02X type: 0x%02X len: %d\n",
 		  data_[0], data_[2], len));
     frames_++;
     idx_ = 0;

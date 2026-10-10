@@ -42,13 +42,6 @@ using dbg::CmdHandler;
 
 #define LED_PIN (PIN_C2)
 
-
-#define LIGHT_BRIGHT_CH (10)  // Adjust leading edge light brightness.
-#define LIGHT_LEVEL_CH (11)  // Turns lights off/Low/Hi
-#define LIGHT_MODE_CH (12) 
-#define LIGHT_SUBMODE_CH (13)  
-#define LIGHT_THROTTLE_CH (14)  // Adjusts lights speed
-
 #define LED_FUSE_SIDE_CNT (78)
 #define LED_FUSE_CNT (2 * LED_FUSE_SIDE_CNT)
 #define NUM_WING_PANELS (6)
@@ -65,23 +58,23 @@ u8_t led_data[3 * RGB_CNT + 4 * RGBW_CNT];
 
 struct State {
   enum Channels {
-    SLIDER   = 10,  // Light brightness slider
-    SWITCH   = 11,  // 3 pos off/low/high
-    MODE     = 12,  // Sets Lights Mode (solid, spin, glow)
-    SUBMODE  = 13,  // Sets mode sub mode (best, simple, max)
-    THROTTLE = 14,  // Adjust 'energy' (speed etc).
+    SWITCH   = 5,  // 3 pos off/low/high
+    MODE     = 6,  // Sets Lights Mode (solid, spin, glow)
+    SUBMODE  = 7,  // Sets mode sub mode (best, simple, max)
+    SLIDER   = 8,  // Light brightness slider
+    THROTTLE = 9,  // Adjust 'energy' (speed etc).
   };
+  State() : mode(0), level(0), brt(0), thr(0) { }
   State(u8_t mode, u8_t level, i16_t brt, i16_t thr) :
     mode(mode), level(level), brt(brt), thr(thr) { }
-  State() : mode(0), level(0), brt(0), thr(0) { }
-  State(RcChannels& chan) :
+  State(const RcChannels& chan) :
     mode((ThreePosSwitch(chan.GetChannel(MODE)) << 2) |
 	 ThreePosSwitch(chan.GetChannel(SUBMODE))),
     level(ThreePosSwitch(chan.GetChannel(SWITCH))),
     brt(chan.GetChannel(SLIDER)),
     thr(chan.GetChannel(THROTTLE)) { }
 
-  void Update(RcChannels& chan) {
+  void Update(const RcChannels& chan) {
     *this = State(chan);
   }
 
@@ -101,7 +94,7 @@ struct WingPanel {
   void* Init(void* ptr) {
     ptr = i_strip.SetSpan(ptr, LED_WING_PANEL_V_CNT, true);
     ptr = h_strip.SetSpan(ptr, LED_WING_PANEL_H_CNT, false);
-    ptr = o_strip.SetSpan(ptr, LED_WING_PANEL_V_CNT, true);
+    ptr = o_strip.SetSpan(ptr, LED_WING_PANEL_V_CNT, false);
     return ptr;
   }
 
@@ -177,13 +170,12 @@ struct WingTip {
 
 class Lights {
 public:
-  Lights() : state_(1 << 2 | 0, 1, 256, 0),
-	     pwm_(PORT_D, 400), color_saw(0x20) {
+  Lights() : pwm_(PORT_D, 400), color_saw_(0x20) {
     pwm_.Enable(1, 0x00);
     pwm_.Enable(2, 0x00);
     void* ptr = led_data;
-    ptr = r_fuse.SetSpan(ptr, LED_FUSE_SIDE_CNT, true);
-    ptr = l_fuse.SetSpan(ptr, LED_FUSE_SIDE_CNT, false);
+    ptr = r_fuse_.SetSpan(ptr, LED_FUSE_SIDE_CNT, true);
+    ptr = l_fuse_.SetSpan(ptr, LED_FUSE_SIDE_CNT, false);
 
     for (int p = 0; p < NUM_WING_PANELS; ++p) {
       ptr = l_panels[p].Init(ptr);
@@ -201,7 +193,7 @@ public:
   u8_t Mode() { return mode_ >> 2; }
   u8_t Submode() { return mode_ & 0x03; }
 
-  void UpdateRc(RcChannels& chan) {
+  void UpdateRc(const RcChannels& chan) {
     state_.Update(chan);
   }
   void UpdateState(const State& state) {
@@ -211,6 +203,13 @@ public:
   void ApplyState() {
     mode_ = state_.mode;
     UpdateBright(state_.level, state_.brt);
+    // Throttle is 11 bits, spd has 5 fractional bits, so this makes the
+    // speed multiplier go from 0 -> 4x with throttle.
+    u8_t spd = (state_.thr + (1 <<3)) >> 5;
+    if (spd < 0x07) spd = 0x07;
+    pulse_saw_.SetSpeed(u16_t(spd) << 1);
+    color_saw_.SetSpeed(u16_t(spd) << 1);
+    
     // spinner_.UpdateState(state_.thr, 255);
     // clr_spin_.Set(Submode(), state_.brt, state_.thr);
     DBG_HI(APP, ("Update Brt: %d Spn: %d\n", brt_, wtip_brt_));
@@ -240,15 +239,22 @@ public:
   void Update(u16_t now) {
     DBG_HI(APP, ("Lights::Update now: %u\n", now));
     ApplyState();
+    if (state_.level == 0) {  // Lights off
+      memset(led_data, 0, sizeof(led_data));
+      land_brt_ = 0;
+      Push();
+      return;
+    }
     switch (Mode()) {
     case 0:
+    default:
       UpdateSolidMode(now);
       break;
     case 1:
       UpdateColorMode(now);
       break;
     case 2:
-      // UpdatePulseMode();
+      UpdatePulseMode(now);
       break;
     }
     Push();
@@ -256,15 +262,17 @@ public:
 
   void UpdateSolidMode(u16_t now) {
     u8_t smode = Submode();
-    l_tip.Set(l_clr_);
-    r_tip.Set(r_clr_);
+    const bool blink = (now & 0x7FF) < 100;
     land_brt_ = brt_;
     RGBW wwht(0, brt_);
     RGB wht(wwht);
+    l_tip.Set(l_clr_);
+    r_tip.Set(r_clr_);
     switch (smode) {
     case 0:
-      l_fuse.Fill(l_clr_);
-      r_fuse.Fill(r_clr_);
+    default:
+      l_fuse_.Fill(l_clr_);
+      r_fuse_.Fill(r_clr_);
       for (int p = 0; p < NUM_WING_PANELS; ++p) {
 	WingPanel& l_panel = l_panels[p];
 	WingPanel& r_panel = r_panels[p];
@@ -273,9 +281,27 @@ public:
       }
       break;
     case 1:
+      l_fuse_.Fill(wht);
+      r_fuse_.Fill(wht);
+      for (int p = 0; p < NUM_WING_PANELS; ++p) {
+	WingPanel& l_panel = l_panels[p];
+	WingPanel& r_panel = r_panels[p];
+	if (p == NUM_WING_PANELS - 1) {
+	  l_panel.Set(l_clr_);  // Just outer panel is Red/Green
+	  r_panel.Set(r_clr_);
+	} else {
+	  l_panel.Set(wwht);
+	  r_panel.Set(wwht);
+	}
+      }
+      break;
     case 2:
-      l_fuse.Fill(wht);
-      r_fuse.Fill(wht);
+      if (blink) {
+	l_tip.Set(RGBW(wtip_brt_));
+	r_tip.Set(RGBW(wtip_brt_));
+      }
+      l_fuse_.Fill(wht);
+      r_fuse_.Fill(wht);
       for (int p = 0; p < NUM_WING_PANELS; ++p) {
 	WingPanel& l_panel = l_panels[p];
 	WingPanel& r_panel = r_panels[p];
@@ -285,29 +311,124 @@ public:
       break;
     }
   }
+
   void UpdateColorMode(u16_t now) {
     l_tip.Set(l_clr_);
     r_tip.Set(r_clr_);
     land_brt_ = brt_;
 
     const u8_t hue_step = (0xFF0 / 36);
-    i16_t color_phase = (0xFF - color_saw.Get(now)) << 4;
+    i16_t color_phase = (0xFF - color_saw_.Get(now)) << 4;
 
     RGBW rgbw = HsvToRgb(HSV(
       RND_SHIFT(color_phase, 4), 0xFF, wtip_brt_));
-    l_fuse.Fill(rgbw);
-    r_fuse.Fill(rgbw);
-
-    for (int p = 0; p < NUM_WING_PANELS; ++p) {
-      WingPanel& l_panel = l_panels[p];
-      WingPanel& r_panel = r_panels[p];
-      for (int l = 0; l < 6; ++l) {
-        u8_t hue = RND_SHIFT(color_phase, 4);
-	RGBW rgbw = HsvToRgbw(HSV(hue, 0xFF, wtip_brt_));
-        l_panel.SetH(l, rgbw );
-        r_panel.SetH(l, rgbw);
-        color_phase += hue_step;
+    l_fuse_.Fill(rgbw);
+    r_fuse_.Fill(rgbw);
+    switch (Submode()) {
+    default:
+    case 0:
+      for (int p = 0; p < NUM_WING_PANELS; ++p) {
+	WingPanel& l_panel = l_panels[p];
+	WingPanel& r_panel = r_panels[p];
+	for (int l = 0; l < 6; ++l) {
+	  u8_t hue = RND_SHIFT(color_phase, 4);
+	  RGBW rgbw = HsvToRgbw(HSV(hue, 0xFF, wtip_brt_));
+	  l_panel.SetH(l, rgbw );
+	  r_panel.SetH(l, rgbw);
+	  color_phase += hue_step;
+	}
       }
+      break;
+    case 1:
+      for (int p = 0; p < NUM_WING_PANELS; ++p) {
+	WingPanel& l_panel = l_panels[p];
+	WingPanel& r_panel = r_panels[p];
+	l_panel.Set(rgbw );
+	r_panel.Set(rgbw);
+      }
+      break;
+    case 2:
+      break;
+    }
+  }
+
+  void UpdatePulseMode(u16_t now) {
+    u8_t smode = Submode();
+
+    l_tip.Set(l_clr_);
+    r_tip.Set(r_clr_);
+    land_brt_ = brt_;
+    RGBW wwht(0, brt_);
+    RGB wht(wwht);
+    u8_t pulse_phase = 0xFF - pulse_saw_.Get(now);
+    switch (smode) {
+    case 0:
+    default:
+      for (u8_t p =0; p < NUM_WING_PANELS; ++p) {
+	for (u8_t i = 0; i < 6; ++i) {
+	  u8_t v = (p * 6 + i);
+	  u8_t s = (v * 7) + (v >> 4);  // 7.0625 * 36 = 254
+	  s = bscale8(Logify(sin8(s + pulse_phase)), wtip_brt_);
+	  RGBW pix(s);
+	  l_panels[p].SetH(i, pix);
+	  r_panels[p].SetH(i, pix);
+	}
+      }
+      for (u8_t v = 0; v < 58; ++v) {
+	u8_t s = (v * 3) + (v >> 2);
+	s = bscale8(Logify(sin8(pulse_phase + s)), wtip_brt_);
+	RGBW pix(s);
+	l_fuse_.Set(58 - v, pix);
+	r_fuse_.Set(58 - v, pix);
+	if (v < 20) {
+	  l_fuse_.Set(v + 58, pix);
+	  r_fuse_.Set(v + 58, pix);
+	}
+      }
+      break;
+    case 1:
+      for (u8_t p =0; p < LED_WING_PANEL_V_CNT + 1; ++p) {
+	u8_t s = p == 8 ? 255 : (p * 32);
+	s = bscale8(Logify(sin8(s + pulse_phase)), wtip_brt_);
+	RGBW pix(s);
+	for (int i = 0; i < NUM_WING_PANELS; ++i) {
+	  l_panels[i].SetV(p, pix);
+	  r_panels[i].SetV(p, pix);
+	}
+      }
+      for (u8_t v = 0; v < LED_FUSE_SIDE_CNT; ++v) {
+	u8_t s = (v * 3) + (v >> 2);
+	s = bscale8(Logify(sin8(pulse_phase + s)), wtip_brt_);
+	RGBW pix(s);
+	l_fuse_.Set(77 - v, pix);
+	r_fuse_.Set(77 - v, pix);
+      }
+      break;
+    case 2:
+      for (u8_t p =0; p < LED_WING_PANEL_V_CNT + 1; ++p) {
+	u8_t s = p == 8 ? 255 : (p * 32);
+	s = bscale8(Logify(sin8(s + pulse_phase)), wtip_brt_);
+	RGBW pix(s);
+	for (int i = 0; i < NUM_WING_PANELS; ++i) {
+	  if (p == 0) {
+	    l_panels[i].h_strip.Fill(pix);
+	    r_panels[i].h_strip.Fill(pix);
+	  } else {
+	    l_panels[i].i_strip.Set(p - 1, pix);
+	    r_panels[i].i_strip.Set(p - 1, pix);
+	    l_panels[i].o_strip.Set(LED_WING_PANEL_V_CNT - 1 - p, pix);
+	    r_panels[i].o_strip.Set(LED_WING_PANEL_V_CNT - 1 - p, pix);
+	  }
+	}
+      }
+      for (u8_t v = 0; v < LED_FUSE_SIDE_CNT; ++v) {
+	u8_t s = (v * 3) + (v >> 2);
+	s = bscale8(Logify(sin8(pulse_phase + s)), wtip_brt_);
+	RGBW pix(s);
+	l_fuse_.Set(77 - v, pix);
+	r_fuse_.Set(77 - v, pix);
+      }
+      break;
     }
   }
 
@@ -322,8 +443,8 @@ public:
   State state_;
   u8_t mode_, brt_, wtip_brt_, land_brt_;
   Pwm pwm_;
-  VariableSaw color_saw;
-  LedSpan<RGB> l_fuse, r_fuse;
+  VariableSaw color_saw_, pulse_saw_;
+  LedSpan<RGB> l_fuse_, r_fuse_;
   RGBW l_clr_, r_clr_;
   WingPanel l_panels[6];
   WingTip l_tip;
@@ -371,7 +492,6 @@ public:
     if (iter != 0) {
       state.Dump();
       lights_->UpdateState(state);
-      lights_->ApplyState();
     }
   }
 
@@ -417,10 +537,10 @@ int main(void)
   u8_t update_8 = 0;
   while (1) {
     const u16_t now = FastTimeMs();
-//     if (crsf.Run()) {
-//       if (crsf.RunHandlers()) {
-//       }
-//     }
+    if (crsf.Run() && crsf.RunHandlers()) {
+      lights.UpdateRc(rc_handler.GetChannels());
+    }
+
     const u8_t now_3 = now >> 3;
     if (now_3 == update_3) continue;
     update_3 = now_3;  // every 8ms
@@ -434,7 +554,7 @@ int main(void)
     const u8_t now_8 = now >> 8;  // 1/4 sec
     if (now_8 == update_8) continue;
     update_8 = now_8;
-    // rc_handler.Dump();
+    rc_handler.Dump();
     blink_pin.toggle();
   }
 }
